@@ -332,17 +332,23 @@ body.mode-pc .mTitleImg{max-width:min(540px,55vw);max-height:28vh;margin-top:cla
 #sCustomize{display:none!important;}
 .shTitle{font-size:15px;color:var(--B);text-shadow:0 0 12px var(--B);}
 /* ── UNIFIED SHOP ── */
+.shop-sticky-top{
+  position:sticky;top:0;z-index:20;width:100%;
+  display:flex;flex-direction:column;align-items:center;
+  background:#06060f;
+}
 .shop-header{
   width:100%;max-width:620px;
   display:flex;justify-content:space-between;align-items:center;
   padding:14px 16px 10px;flex-shrink:0;
   border-bottom:2px solid rgba(0,212,255,.15);
   background:linear-gradient(180deg,rgba(0,20,50,.7),transparent);
-  position:sticky;top:0;z-index:10;backdrop-filter:blur(8px);
+  backdrop-filter:blur(8px);
 }
 .shop-tabs{
   display:flex;gap:0;width:100%;max-width:620px;flex-shrink:0;
   border-bottom:2px solid rgba(255,255,255,.06);
+  background:#06060f;
 }
 .shop-tab{
   flex:1;padding:11px 0;font-family:'Press Start 2P',monospace;font-size:7px;
@@ -448,6 +454,8 @@ body.mode-pc .mTitleImg{max-width:min(540px,55vw);max-height:28vh;margin-top:cla
 .ball-card-status.active{color:#00ff88;background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.25);}
 .ball-card-status.price{color:var(--Y);background:rgba(255,220,0,.07);border:1px solid rgba(255,220,0,.18);}
 .ball-card-lock{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;pointer-events:none;}
+.img-fallback{display:none;align-items:center;justify-content:center;width:100%;height:76px;font-size:30px;background:rgba(0,0,0,.25);}
+.char-skin-fallback{display:none;align-items:center;justify-content:center;width:100%;aspect-ratio:1;font-size:24px;background:#0a0a18;}
 /* ── SKINS: CHAR CARDS ── */
 .char-skin-grid{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px;}
 .char-skin-card{
@@ -1236,23 +1244,26 @@ body.mode-pc #sModes > *{
 <!-- TIENDA UNIFICADA: MEJORAS + SKINS -->
 <div id="sShop" class="scr">
 
-  <!-- Header sticky -->
-  <div class="shop-header">
-    <div>
-      <div style="font-size:11px;color:var(--B);text-shadow:0 0 12px var(--B);letter-spacing:2px;">🛒 TIENDA</div>
-      <div style="font-size:6px;color:#2a4a6a;letter-spacing:1px;margin-top:2px;">Lab de Skips · Personalización</div>
+  <!-- Header + Tabs: ambos quedan fijos arriba al hacer scroll, así el
+       selector MEJORAS/SKINS nunca queda inalcanzable ("tapado") -->
+  <div class="shop-sticky-top">
+    <div class="shop-header">
+      <div>
+        <div style="font-size:11px;color:var(--B);text-shadow:0 0 12px var(--B);letter-spacing:2px;">🛒 TIENDA</div>
+        <div style="font-size:6px;color:#2a4a6a;letter-spacing:1px;margin-top:2px;">Lab de Skins · Personalización</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="font-size:8px;color:var(--Y);" id="shCoins">🪙 0</div>
+        <button class="mBtn b" style="width:auto;padding:6px 11px;font-size:7px;min-width:0;" onclick="show('sModes')">← MODOS</button>
+      </div>
     </div>
-    <div style="display:flex;align-items:center;gap:10px;">
-      <div style="font-size:8px;color:var(--Y);" id="shCoins">🪙 0</div>
-      <button class="mBtn b" style="width:auto;padding:6px 11px;font-size:7px;min-width:0;" onclick="show('sModes')">← MODOS</button>
-    </div>
-  </div>
 
-  <!-- Tabs -->
-  <div class="shop-tabs" style="width:100%;display:flex;justify-content:center;">
-    <div style="display:flex;width:100%;max-width:620px;">
-      <button class="shop-tab active" id="shopTabUpg" onclick="switchShopTab('upg')">⚡ MEJORAS</button>
-      <button class="shop-tab skins-tab" id="shopTabSkins" onclick="switchShopTab('skins')">🎨 SKINS</button>
+    <!-- Tabs -->
+    <div class="shop-tabs" style="width:100%;display:flex;justify-content:center;">
+      <div style="display:flex;width:100%;max-width:620px;">
+        <button class="shop-tab active" id="shopTabUpg" onclick="switchShopTab('upg')">⚡ MEJORAS</button>
+        <button class="shop-tab skins-tab" id="shopTabSkins" onclick="switchShopTab('skins')">🎨 SKINS</button>
+      </div>
     </div>
   </div>
 
@@ -1725,6 +1736,7 @@ function unlockChar(key){
 }
 function unlockBall(id){
   const b=BALL_SKINS.find(x=>x.id===id);if(!b||b.unlocked){toast('Ya tienes esta skin');return;}
+  if(b.eventOnly){toast('🔒 Skin exclusiva de eventos — disponible solo durante eventos especiales');return;}
   if(sv.coins<b.cost){toast('Sin monedas');return;}sv.coins-=b.cost;b.unlocked=true;saveSv();toast('¡BALÓN '+b.name+' DESBLOQUEADO!','#ffe600');buildCustomize();
 }
 function unlockCharSkin(ck,sid){
@@ -2100,17 +2112,17 @@ const CHARS={
   margaret:{
     name:'Margaret',nameEs:'Margarita',role:'VELOCIDAD',col:'#ff5566',unlock:1,cost:180,atq:3,def:2,spd:5,
     icon:null,
-    img:'https://static.wikia.nocookie.net/regularshow/images/d/d1/Margaret_character.png/revision/latest/scale-to-width-down/200',
+    img:'https://chibi.iitranq.co.uk/ouHqPIGQKpnX.png',
     sprites:mkSprites(
-      'https://static.wikia.nocookie.net/regularshow/images/d/d1/Margaret_character.png/revision/latest/scale-to-width-down/200',         // idle
-      'https://static.wikia.nocookie.net/regularshow/images/d/d1/Margaret_character.png/revision/latest/scale-to-width-down/200',         // walk
+      'https://chibi.iitranq.co.uk/ouHqPIGQKpnX.png',         // idle (nuevo arte propio)
+      'https://chibi.iitranq.co.uk/ouHqPIGQKpnX.png',         // walk
       'https://static.wikia.nocookie.net/regularshow/images/6/6a/Margaret_throwing.png/revision/latest/scale-to-width-down/200',          // throw
-      'https://static.wikia.nocookie.net/regularshow/images/d/d1/Margaret_character.png/revision/latest/scale-to-width-down/200',         // shield
-      'https://static.wikia.nocookie.net/regularshow/images/d/d1/Margaret_character.png/revision/latest/scale-to-width-down/200',         // hurt
+      'https://chibi.iitranq.co.uk/ouHqPIGQKpnX.png',         // shield
+      'https://chibi.iitranq.co.uk/ouHqPIGQKpnX.png',         // hurt
       'https://static.wikia.nocookie.net/regularshow/images/4/45/Margaret_angry.png/revision/latest/scale-to-width-down/200'              // super
     ),
-    skins:[{id:'default',name:'DEFAULT',icon:'🐦‍🔥',img:'https://static.wikia.nocookie.net/regularshow/images/d/d1/Margaret_character.png/revision/latest/scale-to-width-down/200',cost:0,unlocked:true,
-      sprites:mkSprites('https://static.wikia.nocookie.net/regularshow/images/d/d1/Margaret_character.png/revision/latest/scale-to-width-down/200')}],
+    skins:[{id:'default',name:'DEFAULT',icon:'🐦‍🔥',img:'https://chibi.iitranq.co.uk/ouHqPIGQKpnX.png',cost:0,unlocked:true,
+      sprites:mkSprites('https://chibi.iitranq.co.uk/ouHqPIGQKpnX.png')}],
     super:'WING STRIKE',superFn:'superMargaret',leaderBuff:'BUFF: Tiros +1 velocidad'
   },
   cj:{
@@ -2255,11 +2267,20 @@ const ENEMY_DEFS=[
 ];
 const BALL_SKINS=[
   {id:'default',name:'BALÓN CLÁSICO',col:'#ff5500',glowCol:'#ffea00',cost:0,unlocked:true,emoji:'🔴',imgUrl:'https://chibi.iitranq.co.uk/Kph7iBuNx5qy.png'},
-  {id:'fire',name:'BALÓN DE FUEGO',col:'#ff2200',glowCol:'#ff8800',cost:80,unlocked:false,emoji:'🔥',imgUrl:'https://static.wikia.nocookie.net/regularshow/images/0/04/Big_Terrible_Tooth.png/revision/latest/scale-to-width-down/80'},
-  {id:'cyber',name:'BALÓN CYBER',col:'#00ffff',glowCol:'#00aaff',cost:100,unlocked:false,emoji:'🔵',imgUrl:'https://chibi.iitranq.co.uk/AenvlqnAYIn7.jpg'},
-  {id:'galaxy',name:'BALÓN GALAXIA',col:'#cc44ff',glowCol:'#ff44cc',cost:150,unlocked:false,emoji:'🟣',imgUrl:'https://chibi.iitranq.co.uk/UFVGIzealxch.jpg'},
-  {id:'gold',name:'BALÓN ORO',col:'#ffd700',glowCol:'#ffaa00',cost:200,unlocked:false,emoji:'🟡',imgUrl:'https://chibi.iitranq.co.uk/bQdsQ2NRwJHo.jpg'},
-  {id:'ghost',name:'BALÓN FANTASMA',col:'#aaddff',glowCol:'#ffffff',cost:120,unlocked:false,emoji:'👻',imgUrl:'https://static.wikia.nocookie.net/regularshow/images/d/d4/Hi_Five_Ghost_character.png/revision/latest/scale-to-width-down/80'},
+  {id:'red',name:'BALÓN ROJO',col:'#ff3344',glowCol:'#ff8866',cost:40,unlocked:false,emoji:'🔴',imgUrl:'https://chibi.iitranq.co.uk/Ziuk0r3EI3ES.png'},
+  {id:'fire',name:'BALÓN DE FUEGO',col:'#ff2200',glowCol:'#ff8800',cost:80,unlocked:false,emoji:'🔥',imgUrl:'https://chibi.iitranq.co.uk/mNfxjAAJZ7FS.png'},
+  {id:'ice',name:'BALÓN DE HIELO',col:'#66ddff',glowCol:'#ffffff',cost:90,unlocked:false,emoji:'❄️',imgUrl:'https://chibi.iitranq.co.uk/40259UCzTYAj.png'},
+  {id:'cyber',name:'BALÓN CYBER',col:'#00ffff',glowCol:'#00aaff',cost:100,unlocked:false,emoji:'🔵',imgUrl:'https://chibi.iitranq.co.uk/C3iNbxHf9Rui.png'},
+  {id:'tech',name:'BALÓN TECH',col:'#33ff99',glowCol:'#00ffcc',cost:110,unlocked:false,emoji:'⚙️',imgUrl:'https://chibi.iitranq.co.uk/hI5S3PUuMBgX.png'},
+  {id:'pixel',name:'BALÓN PIXEL',col:'#ffaa00',glowCol:'#ffee44',cost:90,unlocked:false,emoji:'🟧',imgUrl:'https://chibi.iitranq.co.uk/OvFT1kaey1Mw.png'},
+  {id:'lowpoly',name:'BALÓN LOW POLY',col:'#88ccff',glowCol:'#aaffee',cost:110,unlocked:false,emoji:'🔷',imgUrl:'https://chibi.iitranq.co.uk/3aDSYMcyP9ao.png'},
+  {id:'draw',name:'BALÓN DIBUJADO',col:'#ffffff',glowCol:'#ffddaa',cost:90,unlocked:false,emoji:'✏️',imgUrl:'https://chibi.iitranq.co.uk/e4ezrWhqAITn.png'},
+  {id:'ghost',name:'BALÓN FANTASMA',col:'#aaddff',glowCol:'#ffffff',cost:120,unlocked:false,emoji:'👻',imgUrl:'https://chibi.iitranq.co.uk/CQolODtxKOAU.png'},
+  {id:'galaxy',name:'BALÓN GALAXIA',col:'#cc44ff',glowCol:'#ff44cc',cost:150,unlocked:false,emoji:'🟣',imgUrl:'https://chibi.iitranq.co.uk/zorf4yXz2q7E.png'},
+  {id:'gold',name:'BALÓN ORO',col:'#ffd700',glowCol:'#ffaa00',cost:200,unlocked:false,emoji:'🟡',imgUrl:'https://chibi.iitranq.co.uk/oItH0GUhIOH8.png'},
+  {id:'diamond',name:'BALÓN DIAMANTE',col:'#a8e4ff',glowCol:'#ffffff',cost:280,unlocked:false,emoji:'💎',imgUrl:'https://chibi.iitranq.co.uk/eRLGgfyMgTbc.png'},
+  {id:'chaosphere',name:'CHAOSPHERE',col:'#cc44ff',glowCol:'#ff00ff',cost:600,unlocked:false,emoji:'🌀',imgUrl:'https://chibi.iitranq.co.uk/XhP12zwmJBlh.png'},
+  {id:'popshead',name:'CABEZA DE POPS',col:'#ffe600',glowCol:'#fff7aa',cost:0,unlocked:false,emoji:'👑',imgUrl:'https://chibi.iitranq.co.uk/gD6MysKb4IlC.png',eventOnly:true},
 ];
 let selectedBallSkin='default';
 const POWERUPS=[
@@ -2432,10 +2453,16 @@ function addCharXp(k,amt){
 // Uses c.icon if available, otherwise falls back to the skin img.
 function getIconSrc(k){
   const c=CHARS[k];
+  // Prioridad: icono/imagen de la SKIN EQUIPADA (le da un toque único al equipar)
+  // → icono base del personaje → imagen base del personaje.
+  const skinId=sv.equippedSkins[k]||(c.skins&&c.skins[0]&&c.skins[0].id);
+  const skin=c.skins?c.skins.find(s=>s.id===skinId):null;
+  if(skin){
+    const skinIconSrc=(skin.icon&&skin.icon.startsWith('http'))?skin.icon:skin.img;
+    if(skinIconSrc)return skinIconSrc;
+  }
   if(c.icon)return c.icon;
-  const skinId=sv.equippedSkins[k]||'default';
-  const skin=c.skins?c.skins.find(s=>s.id===skinId)||c.skins[0]:null;
-  return skin?skin.img:c.img||'';
+  return c.img||'';
 }
 
 function makeCharIcon(k,mode){
@@ -2579,7 +2606,8 @@ function openSkinsModal(charKey){
     const tile=document.createElement('div');
     tile.style.cssText=`position:relative;border:2px solid ${isEquipped?'#cc44ff':'#2a2a3a'};border-radius:10px;overflow:hidden;cursor:pointer;background:#0a0a18;transition:all .15s;${isEquipped?'box-shadow:0 0 16px #cc44ff55;':''}`;
     tile.innerHTML=`
-      <img src="${skinIconSrc}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block;${!s.unlocked?'filter:brightness(.25) grayscale(.8);':''}" onerror="this.style.background='#0a0a18'">
+      <img src="${skinIconSrc}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block;${!s.unlocked?'filter:brightness(.25) grayscale(.8);':''}" onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='flex';" alt="">
+      <div class="char-skin-fallback">🧍</div>
       <div style="position:absolute;inset:0;background:rgba(0,180,80,0.18);background-image:repeating-linear-gradient(0deg,rgba(0,0,0,0.15) 0px,rgba(0,0,0,0.15) 1px,transparent 1px,transparent 3px);pointer-events:none;z-index:1;${!s.unlocked?'display:none;':''}"></div>
       ${isEquipped?`<div style="position:absolute;top:4px;right:4px;background:#cc44ff;border-radius:3px;font-size:4px;color:#fff;padding:2px 4px;font-family:'Press Start 2P',monospace;">ON</div>`:''}
       ${!s.unlocked?`<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;"><span style="font-size:20px;">🔒</span><span style="font-size:6px;color:var(--Y);font-family:'Press Start 2P',monospace;">🪙${s.cost}</span></div>`:''}
@@ -2753,11 +2781,12 @@ function buildCustomize(){
     card.style.setProperty('--ball-col',b.col);
     card.style.borderColor=active?b.col:'#1a1a2a';
     let statusHtml='';
-    if(!b.unlocked) statusHtml=`<div class="ball-card-status price">🪙 ${b.cost}</div>`;
+    if(!b.unlocked) statusHtml=b.eventOnly?`<div class="ball-card-status price" style="background:linear-gradient(90deg,#ffe600,#ff8800);color:#000;">EVENTO</div>`:`<div class="ball-card-status price">🪙 ${b.cost}</div>`;
     else if(active)  statusHtml=`<div class="ball-card-status active">✓ EQUIPADO</div>`;
     else             statusHtml=`<div class="ball-card-status owned">EQUIPAR</div>`;
     card.innerHTML=`
-      <img class="ball-card-img" src="${b.imgUrl||''}" onerror="this.style.opacity='.2'" alt="${b.name}">
+      <img class="ball-card-img" src="${b.imgUrl||''}" onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='flex';" alt="">
+      <div class="img-fallback">${b.emoji||'⚪'}</div>
       ${!b.unlocked?`<div class="ball-card-lock"><span style="font-size:20px;">🔒</span></div>`:''}
       <div class="ball-card-name" style="color:${b.col};">${b.name}</div>
       ${statusHtml}`;
@@ -2786,7 +2815,8 @@ function buildCustomize(){
       card.innerHTML=`
         <div class="char-skin-img-wrap">
           <img class="char-skin-img${s.unlocked?'':' locked'}" src="${skinIconSrc}"
-            onerror="this.parentElement.style.background='#111'" alt="${s.name}">
+            onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='flex';" alt="">
+          <div class="char-skin-fallback" style="position:absolute;inset:0;aspect-ratio:auto;height:100%;">🧍</div>
           ${equipped?`<div class="char-skin-badge">ON</div>`:''}
           ${!s.unlocked?`<div class="char-skin-lock">
             <span style="font-size:20px;">🔒</span>
@@ -2860,6 +2890,7 @@ class Fighter{
     this.sprHurt=loadImg(sp.hurt||sp.idle||fb);
     this.sprSuper=loadImg(sp.super||sp.throw||sp.idle||fb);
     this.img=this.sprIdle;this._throwTimer=0;this._shieldTimer=0;this._hurtTimer=0;this._superTimer=0;
+    this._throwCooldown=0; // PASO 2: tiempo restante antes de poder lanzar de nuevo (modo tiempo real)
   }
   setTarget(){
     const margin=50;const lx=this.side==='l'?margin:W/2+10;const rx=this.side==='l'?W/2-70:W-margin-this.w;
@@ -2868,11 +2899,18 @@ class Fighter{
   update(){
     this.idle+=.045;if(this.hitFlash>0)this.hitFlash--;if(this._throwTimer>0)this._throwTimer--;
     if(this._shieldTimer>0)this._shieldTimer--;if(this._hurtTimer>0)this._hurtTimer--;if(this._superTimer>0)this._superTimer--;
+    if(this._throwCooldown>0)this._throwCooldown--; // PASO 2: cooldown de lanzamiento en tiempo real
     if(this.recoilX!==0){this.x+=this.recoilX;this.recoilX*=.7;if(Math.abs(this.recoilX)<.2)this.recoilX=0;}
     if(this.squashT>0){this.squashT--;const t=this.squashT/8;this.scaleX=1+t*.3;this.scaleY=1-t*.25;}else{this.scaleX=1;this.scaleY=1;}
     this.isMoving=false;
     if(this.frozen<=0){
-      if(this.side==='r'&&!(isVersus&&isVersus()&&versusSimultaneous)){
+      // teamE es IA SOLO si nadie humano lo controla. En Versus por Sala
+      // y en Online Ranked, teamE SIEMPRE es un jugador humano real
+      // (el guest), así que la IA nunca debe tocarlo en esos modos.
+      const _teamEisHuman = (isVersus()&&versusSimultaneous) // simultáneo: humano en mismo dispositivo
+        || (isVersus()&&sv._netVersus)                       // versus por sala: humano remoto
+        || isOnlineReal();                                   // ranked online: humano remoto
+      if(this.side==='r'&&!_teamEisHuman){
         if(this._goPickup&&!ball.inFlight&&ball.onGround){
           // Only pick up if ball is on the enemy (right) side of the court
           // If the ball landed in the player's half, cancel pickup — player should get it
@@ -2897,7 +2935,9 @@ class Fighter{
               this.isMoving=true;
             } else {
               this._goPickup=false;ball.owner=this;ball.onGround=false;
-              setTurn(false);setTimeout(aiTurn,600);
+              setTurn(false);
+              // Solo disparar la IA si teamE de verdad es un bot (no un humano en sala/online)
+              if(!_teamEisHuman)setTimeout(aiTurn,600);
             }
           }
         }else{
@@ -3008,6 +3048,9 @@ function triggerHitFlash(col){hitFlash=8;hitFlashCol=col||'#ffffff';}
 
 let teamJ=[],teamE=[],ball={},turnJ=true,active=false,charging=false,chargeTimer=null,chargeLevel=0;
 const MAX_CHARGE=3;let rageJ=0,rageE=0,blockWin=false,blockTimer=null,blockTimeLeft=0,counterWin=false,counterTimer=null;
+let blockSide=null; // PASO 2: 'l' o 'r' — qué equipo tiene la ventana de bloqueo activa (reemplaza la dependencia de turnJ)
+let counterSide=null; // PASO 2: 'l' o 'r' — qué equipo puede contraatacar
+const THROW_COOLDOWN_FRAMES=55; // PASO 2: ~0.9s a 60fps — tiempo de recarga tras lanzar, en vez de "esperar tu turno"
 let skipsShield=false,shakeF=0,shakeA=0,animId=null,leaderBuffActive={},turnCount=0,popsHealTimer=0;
 let floorPowerups=[],activePowerup=null,armorShield=0,poisonTarget=null;
 let comboCount=0,comboTimer=0,comboMax=0;
@@ -3138,9 +3181,12 @@ function setTurn(j){
 }
 // Show pass-device overlay between turns in versus mode
 function versusPassTurn(toJ,callback){
-  if(!isVersus()||versusSimultaneous){callback();return;}
+  // En Versus por Sala y Online cada jugador tiene su PROPIO dispositivo:
+  // nunca debe aparecer el overlay de "pasa el dispositivo".
+  const isNetPlay=(isVersus()&&sv._netVersus)||isOnlineReal();
+  if(!isVersus()||versusSimultaneous||isNetPlay){callback();return;}
   const col=toJ?'#00d4ff':'#ff2277';
-  showPassOverlay((toJ?'👤 TURNO J1':'👤 TURNO J2'),col,'Tapa la pantalla y pasa el dispositivo',callback);
+  showPassOverlay((toJ?'TURNO J1':'TURNO J2'),col,'Tapa la pantalla y pasa el dispositivo',callback);
 }
 function updRageBtn(){const can=rageJ>=100&&turnJ&&!ball.inFlight;const rd=$$('rageBig');if(rd)rd.style.display=can?'block':'none';}
 function activeJ(){return teamJ.find(j=>j.alive)||null;}
@@ -3229,26 +3275,22 @@ function onPointerDown(e){
     return;
   }
   const {x,y}=cvCoords(e);touchStart={x,y,time:Date.now(),target:null,targetType:null};isDragging=false;
-  // myTeam: equipo del jugador activo según turno (o rol fijo en modo red)
+  // myTeam: SIEMPRE tu propio equipo (teamJ), ya no depende del turno
   const myTeam  = myAllowedTeam();
   const oppTeam = myTeam===teamJ ? teamE : teamJ;
   const wallSide= myTeam===teamJ?(x>W*.82):(x<W*.18);
   const inOppHalf=myTeam===teamJ?(x>W/2):(x<W/2);
-  if(!turnJ&&!isVersus()){
-    // AI game: non-turnJ = AI turn, only allow block/counter/ally drag
-    if(counterWin){doCounter();return;}
-    if(blockWin){doBlock();return;}
-    const _hj=hitFighter(teamJ,x,y);if(_hj){dragFighter=_hj;isDragging=true;_hj.isDragged=true;touchStart.target=_hj;touchStart.targetType='ally';return;}
-    return;
-  }
-  // Human turn (J1 or J2 in versus)
+  // ── PASO 2: TIEMPO REAL — ya no existe "turno IA" que bloquee todo.
+  // El bloqueo/contra están siempre disponibles si la ventana está abierta,
+  // y el lanzamiento depende del cooldown de tu propia ficha portadora,
+  // no de un turno global.
+  if(counterWin&&counterSide===(myTeam===teamJ?'l':'r')){doCounter();return;}
+  if(blockWin&&blockSide===(myTeam===teamJ?'l':'r')){doBlock();return;}
+  // Allow dragging allies even when ball is in flight (movement is always free)
   if(ball.inFlight){
-    if(counterWin){doCounter();return;}
-    if(blockWin){doBlock();return;}
+    const _hj=hitFighter(myTeam,x,y);if(_hj){dragFighter=_hj;isDragging=true;_hj.isDragged=true;touchStart.target=_hj;touchStart.targetType='ally';return;}
     return;
   }
-  if(counterWin){doCounter();return;}
-  if(blockWin){doBlock();return;}
   // Allow dragging allies even when ball is on ground
   const hitAllyGround=hitFighter(myTeam,x,y);if(hitAllyGround&&(ball.onGround||ball.owner!==hitAllyGround)){dragFighter=hitAllyGround;isDragging=true;hitAllyGround.isDragged=true;touchStart.target=hitAllyGround;touchStart.targetType='ally';}
   // Ball on ground: tap near it to pick it up
@@ -3258,16 +3300,16 @@ function onPointerDown(e){
       // Nearest living ally picks it up
       const nearest=myTeam.filter(j=>j.alive).reduce((a,b)=>
         Math.hypot(a.x+a.w/2-ball.x,a.y+a.h/2-ball.y)<Math.hypot(b.x+b.w/2-ball.x,b.y+b.h/2-ball.y)?a:b,myTeam.filter(j=>j.alive)[0]);
-      if(nearest){ball.owner=nearest;ball.onGround=false;setTurn(true);spawnFloat('¡RECOGIDO!',ball.x,ball.y,'#00d4ff');}
+      if(nearest){ball.owner=nearest;ball.onGround=false;spawnFloat('¡RECOGIDO!',ball.x,ball.y,'#00d4ff');}
       return;
     }
   }
   // ONLINE / NET-VERSUS: solo el portador de MI equipo puede iniciar tiro
   const _netRestricted=isOnline()||(sv._netVersus&&sv.gameMode==='versus');
   const hitOpp=(!_netRestricted)&&hitFighter(oppTeam,x,y);if(hitOpp){touchStart.target=hitOpp;touchStart.targetType='enemy';ball.charge=0;charging=true;chargeLevel=0;clearInterval(holdChargeTimer);holdChargeTimer=setInterval(()=>{if(!charging||chargeLevel>=MAX_CHARGE)return;chargeLevel++;ball.charge=chargeLevel;},360);swipeArrow={active:true,sx:x,sy:y,ex:x,ey:y};return;}
-  // Portador de la pelota: solo si es de mi equipo
+  // Portador de la pelota: solo si es de mi equipo y NO está en cooldown de lanzamiento
   const pos=ball.owner;
-  const ballIsMine=pos&&pos.alive&&myTeam.includes(pos);
+  const ballIsMine=pos&&pos.alive&&myTeam.includes(pos)&&(pos._throwCooldown||0)<=0;
   if(ballIsMine){const hitO=hitFighter([pos],x,y);if(hitO){touchStart.target=pos;touchStart.targetType='allyBall';ball.charge=0;charging=true;chargeLevel=0;clearInterval(holdChargeTimer);holdChargeTimer=setInterval(()=>{if(!charging||chargeLevel>=MAX_CHARGE)return;chargeLevel++;ball.charge=chargeLevel;},360);swipeArrow={active:true,sx:pos.x+pos.w/2,sy:pos.y+pos.h/2,ex:x,ey:y};return;}}
   const hitAlly=hitFighter(myTeam.filter(j=>j!==ball.owner),x,y);if(hitAlly){dragFighter=hitAlly;isDragging=true;hitAlly.isDragged=true;touchStart.target=hitAlly;touchStart.targetType='ally';return;}
   if(wallSide&&ballIsMine){touchStart.targetType='wall';ball.charge=0;charging=true;chargeLevel=0;swipeArrow={active:true,sx:x,sy:y,ex:x,ey:y};clearInterval(holdChargeTimer);holdChargeTimer=setInterval(()=>{if(!charging||chargeLevel>=MAX_CHARGE)return;chargeLevel++;ball.charge=chargeLevel;},360);return;}
@@ -3613,31 +3655,32 @@ function doBlock(){
   if(!blockWin)return;blockWin=false;clearTimeout(blockTimer);clearInterval(blockFillTimer);
   $$('blockBig').style.display='none';msg('¡BLOQUEADO!');spawnFloat('BLOQUEO!',W/2,H/2,'#00d4ff');
   shakeF=5;shakeA=3;ball.inFlight=false;ball.vx=0;ball.vy=0;
-  const defTeamBlock=isVersus()?(turnJ?teamE:teamJ):(teamJ);
+  // PASO 2: el equipo defensor es el que tenía la ventana de bloqueo activa (blockSide), no quien "tiene el turno"
+  const defTeamBlock=blockSide==='r'?teamE:teamJ;
   defTeamBlock.filter(j=>j.alive).forEach(j=>{j._shieldTimer=38;});
-  const defSide=isVersus()?(turnJ?'e':'j'):(!turnJ?'j':'j');
-  addRage(defSide,18);bStats.blk++;sfxBlock();showCounterWindow();
+  const defSide=blockSide==='r'?'e':'j';
+  addRage(defSide,18);bStats.blk++;sfxBlock();showCounterWindow(blockSide);
   // Sync
   if(sv._netVersus||isOnlineReal())_sendNetAction('block',{});
 }
-function showCounterWindow(){
-  counterWin=true;$$('counterBig').style.display='block';clearTimeout(counterTimer);
-  const defIsJ=isVersus()?!turnJ:true;
+function showCounterWindow(side){
+  counterWin=true;counterSide=side||blockSide||'l';$$('counterBig').style.display='block';clearTimeout(counterTimer);
+  const _side=counterSide;
   counterTimer=setTimeout(()=>{
     if(!counterWin)return;counterWin=false;$$('counterBig').style.display='none';
-    const defTeam=defIsJ?teamJ:teamE;
+    const defTeam=_side==='r'?teamE:teamJ;
     ball.owner=defTeam.filter(j=>j.alive)[0]||[...teamJ,...teamE].find(j=>j.alive);
     ball.charge=0;ball.type='normal';activePowerup=null;$$('pwupDisplay').textContent='';
-    if(isVersus())versusPassTurn(defIsJ,()=>setTurn(defIsJ));
-    else setTurn(true);
+    // PASO 2: ya no se asigna turno — el portador queda libre para lanzar cuando quiera
   },1600);
 }
 function doCounter(){
   if(!counterWin)return;counterWin=false;clearTimeout(counterTimer);$$('counterBig').style.display='none';
   msg('¡CONTRAATAQUE!');spawnFloat('¡CONTRA!',W/2,H/2-30,'#ffe600');
-  const defIsJ=isVersus()?!turnJ:true;
-  const defTeam=defIsJ?teamJ:teamE;
-  const atkTeam=defIsJ?teamE:teamJ;
+  // PASO 2: el equipo que contraataca es el que tenía la ventana abierta (counterSide), no "el que no tiene turno"
+  const _side=counterSide||'l';
+  const defTeam=_side==='r'?teamE:teamJ;
+  const atkTeam=_side==='r'?teamJ:teamE;
   if(!atkTeam.filter(j=>j.alive).length){checkWin();return;}
   const src=defTeam.filter(j=>j.alive)[Math.floor(Math.random()*defTeam.filter(j=>j.alive).length)];
   ball.owner=src;ball.charge=2;
@@ -3650,7 +3693,7 @@ function doCounter(){
 cv.addEventListener('mousedown',onPointerDown);cv.addEventListener('mousemove',onPointerMove);cv.addEventListener('mouseup',onPointerUp);
 cv.addEventListener('touchstart',onPointerDown,{passive:false});cv.addEventListener('touchmove',onPointerMove,{passive:false});cv.addEventListener('touchend',onPointerUp,{passive:false});
 
-function doSuper(){if(rageJ<100||!turnJ||ball.inFlight)return;rageJ=0;updHUD();updRageBtn();const hero=activeJ();if(!hero)return;hero._superTimer=45;msg('¡SUPER DE '+(hero.nameEs&&_lang==="es"?hero.nameEs:hero.name).toUpperCase()+'!');shakeF=18;shakeA=9;const fn=hero.superFn;if(fn&&window[fn])window[fn](hero);else{const ve=teamE.filter(j=>j.alive);if(ve.length){ve[0].takeDmg(3);spawnFloat('SUPER!',ve[0].x,ve[0].y-20,'#cc44ff');}}if(hero.superFn){const sn=hero.superFn.replace('super','').replace('eSuper','');if(!chalSession.uniqueSupers.has(sn)){chalSession.uniqueSupers.add(sn);chalSession.supersUsed.push(sn);}}updHUD();checkWin();setTimeout(()=>setTurn(true),500);}
+function doSuper(){if(rageJ<100||ball.inFlight)return;const hero=activeJ();if(!hero||(hero._throwCooldown||0)>0)return;rageJ=0;updHUD();updRageBtn();hero._superTimer=45;msg('¡SUPER DE '+(hero.nameEs&&_lang==="es"?hero.nameEs:hero.name).toUpperCase()+'!');shakeF=18;shakeA=9;const fn=hero.superFn;if(fn&&window[fn])window[fn](hero);else{const ve=teamE.filter(j=>j.alive);if(ve.length){ve[0].takeDmg(3);spawnFloat('SUPER!',ve[0].x,ve[0].y-20,'#cc44ff');}}if(hero.superFn){const sn=hero.superFn.replace('super','').replace('eSuper','');if(!chalSession.uniqueSupers.has(sn)){chalSession.uniqueSupers.add(sn);chalSession.supersUsed.push(sn);}}updHUD();checkWin();}
 window.superMordecai=function(h){const ve=teamE.filter(j=>j.alive);explosion(W/2,H/2);spawnFloat('MORDO BLAST!',W/2,80,'#00d4ff');ve.forEach(e=>{e.takeDmg(2);spark(e.x+e.w/2,e.y,e.col,8);});if(leaderBuffActive.key==='mordecai')ve.forEach(e=>e.takeDmg(1));};
 window.superRigby=function(h){const ve=teamE.filter(j=>j.alive);if(!ve.length)return;const tgt=ve[Math.floor(Math.random()*ve.length)];spawnFloat('TECH KWON DO!',h.x+h.w/2,h.y-20,'#88cc44');setTimeout(()=>{tgt.takeDmg(4,true);spark(tgt.x+tgt.w/2,tgt.y+tgt.h/2,tgt.col,12);updHUD();checkWin();},300);};
 window.superSkips=function(h){skipsShield=true;teamJ.filter(j=>j.alive).forEach(j=>j.armor=2);spawnFloat('BARRERA BIÓNICA!',h.x+h.w/2,h.y-20,'#bb88ff');spawnFloat('EQUIPO PROTEGIDO',W/2,100,'#aaaaaa');};
@@ -3814,10 +3857,15 @@ function throwBall(src,dest,isPase,isCounter=false,spd=14){
   const tx=dest.x+(dest.w||0)/2,ty=dest.y+(dest.h||0)/2;ball.totalFrames=spd;ball.frame=0;ball.vx=(tx-ball.x)/spd;ball.vy=(ty-ball.y)/spd;ball.wobble=0;
   if(src&&src._throwTimer!==undefined)src._throwTimer=22;
   if(src&&src.side==='l'&&!isPase&&!isCounter)sfxThrow();
-  if(!isPase&&!isCounter){setTurn(false);
+  // ── PASO 2: tiempo real — ya no se "pasa el turno" al lanzar.
+  // En vez de eso, el lanzador entra en cooldown (no puede volver a
+  // lanzar de inmediato) y el equipo defensor recibe su ventana de
+  // bloqueo, identificado por el SIDE de "dest", no por un turno global.
+  if(!isPase&&!isCounter){
+    if(src)src._throwCooldown=THROW_COOLDOWN_FRAMES;
     if(ball.type!=='speedball'){const delay=Math.max(80,spd*16.67*.35);
       setTimeout(()=>{if(!ball.inFlight||ball.isPase)return;if(skipsShield){setTimeout(()=>doBlock(),200);return;}
-        blockWin=true;$$('blockBig').style.display='block';const blockDur=(1.0+sv.lB*.4)*1000*(leaderBuffActive.key==='skips'?2:1);$$('blockFill').style.width='100%';$$('blockFill').style.transition=`width ${blockDur}ms linear`;setTimeout(()=>{$$('blockFill').style.width='0%';},10);
+        blockWin=true;blockSide=(dest&&dest.side)||(src&&src.side==='l'?'r':'l');$$('blockBig').style.display='block';const blockDur=(1.0+sv.lB*.4)*1000*(leaderBuffActive.key==='skips'?2:1);$$('blockFill').style.width='100%';$$('blockFill').style.transition=`width ${blockDur}ms linear`;setTimeout(()=>{$$('blockFill').style.width='0%';},10);
         clearTimeout(blockTimer);clearInterval(blockFillTimer);blockTimer=setTimeout(()=>{blockWin=false;$$('blockBig').style.display='none';},blockDur);},delay);}}
   // ── Sincronizar con rival en modo sala si somos el originador ──
   if((sv._netVersus||isOnlineReal())&&src&&src.key){
@@ -3864,60 +3912,59 @@ function onImpact(){
     ball.inFlight=false;ball._free=false;ball.vx=0;ball.vy=0;
     ball.onGround=true;ball.owner=null;
     if(checkWin())return;
-    if(isVersus()&&versusSimultaneous){
-      updSimBallBadges();
-    }else if(isVersus()){
-      // VS turn-based: nearest survivor walks to pick up
-      const survivors=(dest.side==='l'?teamE:teamJ).filter(j=>j.alive);
-      ball.owner=survivors[0]||([...teamJ,...teamE].find(j=>j.alive));
-      const nowJ=!!(ball.owner&&ball.owner.side==='l');
-      versusPassTurn(nowJ,()=>setTurn(nowJ));
-    }else{
-      // AI mode: nearest surviving enemy walks to pick up ball from the ground
+    // ── PASO 4: sin turnos. La pelota queda libre en el suelo para
+    // que CUALQUIERA la recoja (jugador humano arrastrando/tocando,
+    // o IA si ese equipo no tiene humano).
+    const _teamEisHumanKill=(isVersus()&&versusSimultaneous)||(isVersus()&&sv._netVersus)||isOnlineReal();
+    if(!_teamEisHumanKill){
+      // teamE es IA: el más cercano va a buscarla automáticamente
       const ve=teamE.filter(j=>j.alive);
       if(ve.length){
-        // Clear any previous _goPickup so only one enemy goes
         teamE.forEach(j=>j._goPickup=false);
         const picker=ve.reduce((a,b)=>(a.x-ball.x)**2+(a.y-ball.y)**2<(b.x-ball.x)**2+(b.y-ball.y)**2?a:b);
         picker._goPickup=true;
-        setTurn(false);
-      }else{
-        // No enemies left — player won, checkWin already returned above so this
-        // case means the player killed their own (shouldn't happen but guard anyway)
-        ball.onGround=false;
-        const vj=teamJ.filter(j=>j.alive);
-        if(vj.length){ball.owner=vj[0];setTurn(true);}
       }
     }
+    // Si teamE es humano (sala/online/simultáneo), no se hace nada más:
+    // el jugador correspondiente recoge la pelota tocándola/arrastrando,
+    // tal como ya soporta onPointerDown/_hostApplyInput('pickup',...).
     return;
   }
 
-  // Target survived: normal flow
+  // Target survived: normal flow — nadie pierde el turno, ambos siguen libres
   if(!ball.owner||!ball.owner.alive){const eq=ball.owner?ball.owner.side==='l'?teamJ:teamE:teamE;ball.owner=eq.find(j=>j.alive)||([...teamJ,...teamE].find(j=>j.alive));}
-  if(!checkWin()){const nextJ=ball.owner&&ball.owner.side==='l';if(nextJ&&leaderBuffActive.key==='pops'){popsHealTimer++;if(popsHealTimer>=2){popsHealTimer=0;teamJ.filter(j=>j.alive).forEach(j=>j.heal(1));}}
-    if(isVersus()&&versusSimultaneous){
-      if(ball.owner&&ball.owner.side==='l'){turnJ=true;}
-      if(isVersus()&&versusSimultaneous)updSimBallBadges();
-    }else if(isVersus()){
-      const nowJ=!!(ball.owner&&ball.owner.side==='l');
-      versusPassTurn(nowJ,()=>setTurn(nowJ));
-    }else{
-      if(nextJ)setTurn(true);else{setTurn(false);setTimeout(aiTurn,950);}
+  checkWin();
+  if(ball.owner&&ball.owner.side==='l'&&leaderBuffActive.key==='pops'){popsHealTimer++;if(popsHealTimer>=2){popsHealTimer=0;teamJ.filter(j=>j.alive).forEach(j=>j.heal(1));}}
+  // turnJ ya no controla quién puede actuar — se mantiene solo para HUD/compatibilidad visual
+  if(ball.owner)turnJ=(ball.owner.side==='l');
+}
+// ── PASO 4: IA continua en tiempo real ──────────────────────
+// Antes: aiTurn() se disparaba una vez por turno vía setTimeout.
+// Ahora: se llama cada frame desde gameLoop. La IA decide por sí
+// misma cuándo actuar, basada en cooldowns propios — nunca en turnJ.
+let _aiThinkCooldown=0; // evita que la IA decida en cada frame (sería instantáneo/injusto)
+function aiTurn(){
+  if(!active||gamePaused)return;
+  if(_aiThinkCooldown>0){_aiThinkCooldown--;return;}
+  // Si nadie de teamE controla la pelota y está libre en el suelo, intentar recogerla primero (vía gameLoop/_goPickup)
+  if(ball.onGround)return;
+  const pos=ball.owner;
+  // La IA solo actúa cuando SU PROPIO portador puede lanzar (cooldown en 0)
+  if(!pos||!pos.alive||pos.side!=='r')return;
+  if((pos._throwCooldown||0)>0)return;
+  if(ball.inFlight)return;
+  _aiThinkCooldown=20; // ~0.33s entre decisiones, para que no sea instantáneo
+  if(rageE>=100){
+    rageE=0;updHUD();const superFn=pos.superFn;
+    if(superFn&&window[superFn]){
+      msg(pos.name+' usa '+pos.superName+'!');shakeF=12;shakeA=6;sfxSuper();
+      window[superFn](pos);updHUD();checkWin();
+      return;
     }
   }
-}
-function aiTurn(){
-  if(!active||turnJ||ball.inFlight||gamePaused)return;
-  // waiting for pickup via gameLoop
-  // Wait if ball is on the ground or not yet owned by an enemy
-  if(ball.onGround){setTimeout(aiTurn,300);return;}
-  if(!ball.inFlight&&ball.owner&&ball.owner.side!=='r'){return;} // player's turn
-  const pos=ball.owner;if(!pos||!pos.alive){const v=teamE.filter(j=>j.alive);if(v.length){ball.owner=v[0];setTimeout(aiTurn,400);}return;}
-  if(rageE>=100){rageE=0;updHUD();const superFn=pos.superFn;if(superFn&&window[superFn]){msg(pos.name+' usa '+pos.superName+'!');shakeF=12;shakeA=6;sfxSuper();window[superFn](pos);updHUD();if(!checkWin())setTimeout(()=>{setTurn(false);setTimeout(aiTurn,800);},500);return;}}
   const vj=teamJ.filter(j=>j.alive);const ve=teamE.filter(j=>j.alive);if(!vj.length){checkWin();return;}
   const diff=Math.min(1,0.35+(sv.wins||0)*0.05);
   const allies=ve.filter(j=>j!==pos);
-  // Smart target: lowest HP player, target frozen first
   let tgt=vj.find(j=>j.frozen>0)||vj.reduce((a,b)=>a.hp<b.hp?a:b);
   if(Math.random()<0.15)tgt=vj[Math.floor(Math.random()*vj.length)];
   if(allies.length&&ball.charge<2&&Math.random()<0.22+diff*0.12){throwBall(pos,allies[Math.floor(Math.random()*allies.length)],true,false,13);return;}
@@ -4276,12 +4323,15 @@ function myAllowedTeam(){
   const r=myNetRole();
   if(r==='host') return teamJ;
   if(r==='guest') return teamE;
-  return turnJ?teamJ:teamE;
+  // Modo de un jugador (sin red): el humano SIEMPRE controla teamJ,
+  // sin importar quién tiene la pelota — los turnos ya no restringen esto.
+  return teamJ;
 }
 function isMyThrowTurn(){
-  const r=myNetRole();
-  if(r==='host')  return turnJ===true;
-  if(r==='guest') return turnJ===false;
+  // PASO 2: el lanzamiento ya no depende de "turno" sino del cooldown
+  // propio de cada ficha (_throwCooldown). Esta función queda solo
+  // por compatibilidad y siempre permite intentarlo; throwBall/onPointerDown
+  // ya validan el cooldown real antes de lanzar.
   return true;
 }
 
@@ -5397,13 +5447,13 @@ function updateCharScreenForVersus(){
   }
 }
 function doSuperJ2(){
-  if(rageE<100||turnJ||ball.inFlight)return;
+  if(rageE<100||ball.inFlight)return;
+  const hero=teamE.find(j=>j.alive);if(!hero||(hero._throwCooldown||0)>0)return;
   rageE=0;updHUD();
-  const hero=teamE.find(j=>j.alive);if(!hero)return;
   msg('¡SUPER DE '+(hero.nameEs&&_lang==="es"?hero.nameEs:hero.name).toUpperCase()+'!');shakeF=18;shakeA=9;
   const fn=hero.superFn;if(fn&&window[fn])window[fn](hero);
   else{const vj=teamJ.filter(j=>j.alive);if(vj.length){vj[0].takeDmg(3);spawnFloat('SUPER!',vj[0].x,vj[0].y-20,'#ff2277');}}
-  updHUD();checkWin();setTimeout(()=>setTurn(false),500);
+  updHUD();checkWin();
 }
 
 function updateStoryProgress(){const el=$$('storyProgress');if(el)el.textContent=`📖 Capítulo ${(sv.storyChapter||0)+1}/20`;}
@@ -5734,6 +5784,10 @@ const TIPS=['REBOTE: lanza contra la pared trasera para sorprender.','Bloquea co
 function gameLoop(){
   if(!active||gamePaused)return;
   [...teamJ,...teamE].forEach(f=>f.update());
+  // ── PASO 4: IA en tiempo real — se evalúa cada frame, no por turno.
+  // Solo actúa si teamE NO está controlado por un humano (sala/online/simultáneo).
+  const _teamEisHumanLoop=(isVersus()&&versusSimultaneous)||(isVersus()&&sv._netVersus)||isOnlineReal();
+  if(!_teamEisHumanLoop)aiTurn();
   if(comboTimer>0){comboTimer--;if(comboTimer<=0)resetCombo();}
   if(meteorShower.active){meteorShower.timer--;if(meteorShower.timer<=0){meteorShower.timer=180+Math.random()*120;
     const all=[...teamJ,...teamE].filter(j=>j.alive);if(all.length){const tgt=all[Math.floor(Math.random()*all.length)];showEventFlash('☄️ LLUVIA DE METEOROS','#ff6600');
