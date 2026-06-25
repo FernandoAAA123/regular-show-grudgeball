@@ -2296,7 +2296,7 @@ const CHARS={
   // RIGBY FUTURO — antes era una skin, ahora personaje independiente (Común)
   rigby_future:{
     name:'Rigby Futuro',role:'VELOCIDAD',col:'#aa7733',unlock:1,cost:120,atq:3,def:1,spd:5,
-    icon:'https://chibi.iitranq.co.uk/GwVnqPjndnpJ.png',
+    icon:'https://chibi.iitranq.co.uk/YbwhYt5gMKJw.jpg',
     img:'https://chibi.iitranq.co.uk/GwVnqPjndnpJ.png',
     sprites:mkSprites('https://chibi.iitranq.co.uk/GwVnqPjndnpJ.png'),
     skins:[{id:'default',name:'DEFAULT',icon:'https://chibi.iitranq.co.uk/GwVnqPjndnpJ.png',img:'https://chibi.iitranq.co.uk/GwVnqPjndnpJ.png',cost:0,unlocked:true,
@@ -2322,10 +2322,19 @@ const CHARS={
     ],
     super:'BIONIC BARRIER',superFn:'superSkips',leaderBuff:'BUFF: Ventana de bloqueo x2'
   },
-  // SKIPS JOVEN — antes era una skin, ahora personaje independiente (Común)
+  //
   skips_young:{
     name:'Skips Joven',role:'DEFENSA',col:'#eeddaa',unlock:1,cost:130,atq:2,def:5,spd:2,
     icon:'🧒',
+    img:'https://static.wikia.nocookie.net/regularshow/images/c/c4/Young_Skips.png/revision/latest/scale-to-width-down/200',
+    sprites:mkSprites('https://static.wikia.nocookie.net/regularshow/images/c/c4/Young_Skips.png/revision/latest/scale-to-width-down/200'),
+    skins:[{id:'default',name:'DEFAULT',icon:'🧒',img:'https://static.wikia.nocookie.net/regularshow/images/c/c4/Young_Skips.png/revision/latest/scale-to-width-down/200',cost:0,unlocked:true,
+      sprites:mkSprites('https://static.wikia.nocookie.net/regularshow/images/c/c4/Young_Skips.png/revision/latest/scale-to-width-down/200')}],
+    super:'BIONIC BARRIER',superFn:'superSkips',leaderBuff:'BUFF: Ventana de bloqueo x2'
+  },
+  skips_future:{
+    name:'Skips Futuro',role:'DEFENSA',col:'#eeddaa',unlock:1,cost:130,atq:2,def:5,spd:2,
+    icon:'https://chibi.iitranq.co.uk/HH0S5DVTkRWy.jpg',
     img:'https://static.wikia.nocookie.net/regularshow/images/c/c4/Young_Skips.png/revision/latest/scale-to-width-down/200',
     sprites:mkSprites('https://static.wikia.nocookie.net/regularshow/images/c/c4/Young_Skips.png/revision/latest/scale-to-width-down/200'),
     skins:[{id:'default',name:'DEFAULT',icon:'🧒',img:'https://static.wikia.nocookie.net/regularshow/images/c/c4/Young_Skips.png/revision/latest/scale-to-width-down/200',cost:0,unlocked:true,
@@ -2349,6 +2358,18 @@ const CHARS={
       sprites:mkSprites('https://chibi.iitranq.co.uk/PDP0FW4RvQXS.png','https://static.wikia.nocookie.net/regularshow/images/5/5e/Benson_walking.gif/revision/latest/scale-to-width-down/200','https://static.wikia.nocookie.net/regularshow/images/b/b8/Benson_pointing.png/revision/latest/scale-to-width-down/200','https://static.wikia.nocookie.net/regularshow/images/b/b2/Benson_angry.png/revision/latest/scale-to-width-down/200','https://static.wikia.nocookie.net/regularshow/images/6/64/Benson_shocked.png/revision/latest/scale-to-width-down/200','https://static.wikia.nocookie.net/regularshow/images/4/4e/Benson_yelling.png/revision/latest/scale-to-width-down/200')}],
     super:'RAGE BURST',superFn:'superBenson',leaderBuff:'BUFF: Rabia +30% más rápido'
   },
+  benson_future:{
+    name:'Benson Futuro',role:'EQUILIBRIO',col:'#cc4422',unlock:1,cost:120,atq:3,def:3,spd:3,
+    icon:'https://chibi.iitranq.co.uk/HFU4XLM3Z862.jpg',
+    img:'https://chibi.iitranq.co.uk/PDP0FW4RvQXS.png',
+    sprites:mkSprites(
+      'https://chibi.iitranq.co.uk/PDP0FW4RvQXS.png',                                                                                    // idle
+      'https://static.wikia.nocookie.net/regularshow/images/5/5e/Benson_walking.gif/revision/latest/scale-to-width-down/200',             // walk (GIF)
+      'https://static.wikia.nocookie.net/regularshow/images/b/b8/Benson_pointing.png/revision/latest/scale-to-width-down/200',            // throw
+      'https://static.wikia.nocookie.net/regularshow/images/b/b2/Benson_angry.png/revision/latest/scale-to-width-down/200',               // shield (angry = intimidation)
+      'https://static.wikia.nocookie.net/regularshow/images/6/64/Benson_shocked.png/revision/latest/scale-to-width-down/200',             // hurt
+      'https://static.wikia.nocookie.net/regularshow/images/4/4e/Benson_yelling.png/revision/latest/scale-to-width-down/200'              // super
+    ),
   //POPS
   pops:{
     name:'Pops',nameEs:'Papaleta',role:'SOPORTE',col:'#ffcc44',unlock:1,cost:120,atq:2,def:3,spd:4,
@@ -2367,7 +2388,7 @@ const CHARS={
     super:'JOLLY GOOD!',superFn:'superPops',leaderBuff:'BUFF: Curación +1 HP cada 2 turnos'
   },
   //MUSCLEMAN
-  muscle:{
+  muscleman:{
     name:'Muscle Man',nameEs:'Musculoso',role:'POTENCIA',col:'#44bb44',unlock:1,cost:150,atq:5,def:2,spd:1,
     icon:'https://chibi.iitranq.co.uk/VzbZsju4xq8W.jpg',
     img:'https://chibi.iitranq.co.uk/56i08W90Jwvv.png',
@@ -2382,6 +2403,19 @@ const CHARS={
     skins:[{id:'default',name:'DEFAULT',icon:'💚',img:'https://chibi.iitranq.co.uk/56i08W90Jwvv.png',cost:0,unlocked:true,
       sprites:mkSprites('https://chibi.iitranq.co.uk/56i08W90Jwvv.png','https://static.wikia.nocookie.net/regularshow/images/1/1f/Muscle_Man_running.gif/revision/latest/scale-to-width-down/200','https://static.wikia.nocookie.net/regularshow/images/9/98/Muscle_Man_flexing.png/revision/latest/scale-to-width-down/200','https://chibi.iitranq.co.uk/56i08W90Jwvv.png','https://static.wikia.nocookie.net/regularshow/images/f/f1/Muscle_Man_sad.png/revision/latest/scale-to-width-down/200','https://static.wikia.nocookie.net/regularshow/images/1/18/Muscle_Man_angry.png/revision/latest/scale-to-width-down/200')}],
     super:'MY MOM!!',superFn:'superMuscle',leaderBuff:'BUFF: Tiros cargados +2 daño'
+  },
+  muscleman_future:{
+    name:'Future Muscle Man',nameEs:'Musculoso Futuro',role:'POTENCIA',col:'#44bb44',unlock:1,cost:150,atq:5,def:2,spd:1,
+    icon:'https://chibi.iitranq.co.uk/6KSt3IMR9zuC.jpg',
+    img:'https://chibi.iitranq.co.uk/56i08W90Jwvv.png',
+    sprites:mkSprites(
+      'https://chibi.iitranq.co.uk/56i08W90Jwvv.png',                                                                                    // idle
+      'https://static.wikia.nocookie.net/regularshow/images/1/1f/Muscle_Man_running.gif/revision/latest/scale-to-width-down/200',         // walk
+      'https://static.wikia.nocookie.net/regularshow/images/9/98/Muscle_Man_flexing.png/revision/latest/scale-to-width-down/200',         // throw (flexing = power throw)
+      'https://chibi.iitranq.co.uk/56i08W90Jwvv.png',                                                                                    // shield
+      'https://static.wikia.nocookie.net/regularshow/images/f/f1/Muscle_Man_sad.png/revision/latest/scale-to-width-down/200',             // hurt
+      'https://static.wikia.nocookie.net/regularshow/images/1/18/Muscle_Man_angry.png/revision/latest/scale-to-width-down/200'            // super
+    ),
   },
  //HI FIVE
   hifive:{
@@ -2596,7 +2630,7 @@ const BALL_SKINS=[
   {id:'fire',name:'BALÓN DE FUEGO',col:'#ff2200',glowCol:'#ff8800',rarity:'common',unlocked:false,emoji:'🔥',imgUrl:'https://chibi.iitranq.co.uk/mNfxjAAJZ7FS.png'},
   {id:'ice',name:'BALÓN DE HIELO',col:'#66ddff',glowCol:'#ffffff',rarity:'common',unlocked:false,emoji:'❄️',imgUrl:'https://chibi.iitranq.co.uk/40259UCzTYAj.png'},
   {id:'draw',name:'BALÓN DIBUJADO',col:'#ffffff',glowCol:'#ffddaa',rarity:'common',unlocked:false,emoji:'✏️',imgUrl:'https://chibi.iitranq.co.uk/e4ezrWhqAITn.png'},
-  {id:'tech',name:'BALÓN TECH',col:'#33ff99',glowCol:'#00ffcc',rarity:'common',unlocked:true,emoji:'⚙️',imgUrl:'https://chibi.iitranq.co.uk/hI5S3PUuMBgX.png'}, // gratis: recolor menor, no merece costo
+  {id:'tech',name:'BALÓN TECH',col:'#33ff99',glowCol:'#00ffcc',rarity:'common',unlocked:false,emoji:'⚙️',imgUrl:'https://chibi.iitranq.co.uk/hI5S3PUuMBgX.png'}, // gratis: recolor menor, no merece costo
   // ── A partir de aquí: desbloqueo por FICHAS ÚNICAS de cada balón (cofres) ──
   {id:'pixel',name:'BALÓN 8-BIT',col:'#ffaa00',glowCol:'#ffee44',rarity:'common',unlocked:false,emoji:'🟧',imgUrl:'https://chibi.iitranq.co.uk/VIMXaEIu68ob.png'},
   {id:'cyber',name:'BALÓN CYBER',col:'#00ffff',glowCol:'#00aaff',rarity:'common',unlocked:false,emoji:'🔵',imgUrl:'https://chibi.iitranq.co.uk/C3iNbxHf9Rui.png'},
