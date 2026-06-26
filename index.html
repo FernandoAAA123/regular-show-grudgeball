@@ -417,29 +417,34 @@ body.mode-pc .mTitleImg{max-width:min(540px,55vw);max-height:28vh;margin-top:cla
 }
 .skins-section-title.char-title{font-size:7px;color:#00c853;border-bottom-color:rgba(0,200,80,.15);margin-top:16px;}
 /* (las definiciones de .ball-card / .char-skin-grid se consolidan más abajo) */
-/* ── SKINS: BALL CARDS (sistema unificado) ── */
+/* ── SKINS: BALL CARDS (sistema unificado, estilo Bomber Friends) ── */
 .ball-grid{
   display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));
   gap:12px;margin-bottom:6px;
 }
 .ball-card{
-  border:2px solid #1a1a2a;border-radius:14px;
-  text-align:center;background:linear-gradient(160deg,#0d0d1c,#06060e);
+  border:2px solid var(--rcol,#1a1a2a);border-radius:14px;
+  text-align:center;background:linear-gradient(160deg,color-mix(in srgb,var(--rcol,#222) 18%,#0a0a14),#06060e);
   cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;
   position:relative;overflow:hidden;padding-bottom:10px;
   box-shadow:0 2px 8px rgba(0,0,0,.35);
 }
-.ball-card:hover{transform:translateY(-4px);border-color:#333355;box-shadow:0 8px 20px rgba(0,0,0,.45);}
+.ball-card:hover{transform:translateY(-4px);box-shadow:0 8px 20px rgba(0,0,0,.45);}
 .ball-card.equipped{border-color:var(--ball-col,#ff5500);box-shadow:0 0 20px color-mix(in srgb,var(--ball-col,#ff5500) 50%,transparent);}
+.ball-card-rarity-tab{
+  position:absolute;top:0;left:0;font-size:4px;font-family:'Press Start 2P',monospace;
+  color:#fff;background:var(--rcol,#8899aa);padding:3px 6px 2px;border-radius:0 0 6px 0;
+  letter-spacing:.5px;z-index:2;
+}
 .ball-card-img{
   width:100%;height:84px;object-fit:contain;display:block;
-  padding:12px 12px 6px;box-sizing:border-box;
+  padding:16px 12px 6px;box-sizing:border-box;
   transition:transform .18s;
   filter:drop-shadow(0 3px 12px var(--ball-col,#ff5500));
 }
 .ball-card:hover .ball-card-img{transform:scale(1.08);}
 .ball-card.locked .ball-card-img{filter:brightness(.3) grayscale(.85);}
-.ball-card-name{font-size:5.5px;font-family:'Press Start 2P',monospace;padding:2px 6px 6px;line-height:1.7;letter-spacing:.3px;}
+.ball-card-name{font-size:5.5px;font-family:'Press Start 2P',monospace;padding:2px 6px 6px;line-height:1.7;letter-spacing:.3px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8);}
 .ball-card-status{font-size:5px;font-family:'Press Start 2P',monospace;padding:4px 9px;border-radius:5px;display:inline-block;}
 .ball-card-status.owned{color:#667;background:rgba(255,255,255,.04);}
 .ball-card-status.active{color:#00ff88;background:rgba(0,255,136,.12);border:1px solid rgba(0,255,136,.3);}
@@ -1118,6 +1123,7 @@ body.mode-pc #sModes > *{
     <div class="cpName" id="cpName"></div>
     <div class="cpRole" id="cpRole"></div>
     <div id="cpRarity" style="font-size:5.5px;letter-spacing:1px;margin-top:2px;display:none;"></div>
+    <div id="cpRank" style="font-size:9px;letter-spacing:2px;margin-top:3px;display:none;"></div>
     <div class="cpLvRow">
       <div class="cpLvNum" id="cpLv">LV 1</div>
       <div class="cpXpBar"><div class="cpXpFill" id="cpXpFill" style="width:0%"></div></div>
@@ -1633,7 +1639,7 @@ let sv={
   coins:0,tickets:0,lF:1,lV:1,lR:1,lB:1,
   unlockedChars:null, // se inicializa en loadSv() leyendo CHARS[key].unlocked
   unlockedBalls:['default'],equippedBall:'default',wins:0,gamesPlayed:0,
-  charLevels:{},charXp:{},storyChapter:0,tournamentRound:0,gameMode:'quick',infiniteFloor:1,infiniteBest:0,
+  charLevels:{},charXp:{},charRanks:{},storyChapter:0,tournamentRound:0,gameMode:'quick',infiniteFloor:1,infiniteBest:0,
   challengeProgress:{},dailySeed:0,dailyDone:[],achievements:{},comboBest:0,
   activeChalDiv:'bronze',storyProgress:{},
   // ── Sistema de Cofres y Fichas ──
@@ -1656,6 +1662,36 @@ const CHAR_UPGRADE_BOOST={
   epic:{shards:6,coins:100,xp:25},
   legendary:{shards:4,coins:150,xp:25},
 };
+// ── SISTEMA DE RANGO (ESTRELLAS) ──
+// Rango inicial según rareza: común=1★, raro=2★, épico=3★, legendario=4★. Tope absoluto: 6★.
+const RANK_BY_RARITY={common:1,rare:2,epic:3,legendary:4};
+const MAX_RANK=6;
+// Costo para subir DE (rank) A (rank+1): multiplicador escalonado x1,x2,x3,x4,x5 sobre el costo base de CHAR_UPGRADE_BOOST.
+// Ej. común (base 10 fichas/50 monedas): 1★→2★ cuesta x1 (10f/50m), 2★→3★ cuesta x2 (20f/100m), ... 5★→6★ cuesta x5 (50f/250m).
+const RANK_UPGRADE_MULT=[1,2,3,4,5];
+function rankUpgradeCost(rarity,fromRank){
+  const base=CHAR_UPGRADE_BOOST[rarity]||CHAR_UPGRADE_BOOST.common;
+  const mult=RANK_UPGRADE_MULT[fromRank-1]||RANK_UPGRADE_MULT[RANK_UPGRADE_MULT.length-1];
+  return{shards:base.shards*mult,coins:base.coins*mult};
+}
+// ── Reparto del bonus total (nivel+rango) por ROL de personaje ──
+// Cada rol reparte su bonus entre: dmg (daño al lanzar), def (reducción de daño recibido),
+// spd (velocidad de movimiento/animación), heal (HP curado a aliados por los supers de apoyo).
+// JEFE es especial: recibe el bonus COMPLETO en las 4 categorías a la vez (ver totalBonus()).
+const ROLE_STAT_WEIGHTS={
+  'ATAQUE':     {dmg:1.00,def:0,   spd:0,   heal:0},
+  'POTENCIA':   {dmg:0.80,def:0,   spd:0.20,heal:0},
+  'VELOCIDAD':  {dmg:0,   def:0,   spd:1.00,heal:0},
+  'DEFENSA':    {dmg:0,   def:1.00,spd:0,   heal:0},
+  'EQUILIBRIO': {dmg:0.34,def:0.33,spd:0.33,heal:0},
+  'SOPORTE':    {dmg:0,   def:0.60,spd:0,   heal:0.40},
+  'APOYO':      {dmg:0,   def:0.40,spd:0,   heal:0.60},
+  'CONTROL':    {dmg:0.60,def:0,   spd:0.40,heal:0},
+  'COMODÍN':    {dmg:0.25,def:0.25,spd:0.25,heal:0.25},
+  'LEGENDARIO': {dmg:0.40,def:0.30,spd:0.30,heal:0},
+};
+const ROLE_WEIGHTS_DEFAULT={dmg:0.5,def:0.25,spd:0.25,heal:0};
+function getRoleWeights(role){return ROLE_STAT_WEIGHTS[role]||ROLE_WEIGHTS_DEFAULT;}
 const RARITY_LABEL={common:'COMÚN',rare:'RARO',epic:'ÉPICO',legendary:'LEGENDARIO'};
 const RARITY_COLOR={common:'#8899aa',rare:'#3399ff',epic:'#cc44ff',legendary:'#ffaa00'};
 function loadSv(){
@@ -1699,11 +1735,7 @@ function _ballStatusHtml(b,active){
       const need=BALL_RARITY_SHARD_COST[b.rarity];
       sv.ballShards=sv.ballShards||{};
       const have=sv.ballShards[b.id]||0;
-      const rcol=RARITY_COLOR[b.rarity];
-      return `<div style="display:flex;flex-direction:column;gap:3px;align-items:center;">
-        <div class="ball-card-status price" style="background:${rcol}22;border-color:${rcol}55;color:${rcol};">${RARITY_LABEL[b.rarity]}</div>
-        <div style="font-size:4.5px;color:#889;">${have}/${need} fichas</div>
-      </div>`;
+      return `<div style="font-size:4.5px;color:#cdd;">${have}/${need} fichas</div>`;
     }
     return `<div class="ball-card-status price">🔒</div>`;
   }
@@ -1718,12 +1750,14 @@ function buildCollectionBalls(){
     const card=document.createElement('div');
     card.className='ball-card'+(active?' equipped':'')+(b.unlocked?'':' locked');
     card.style.setProperty('--ball-col',b.col);
-    card.style.borderColor=active?b.col:'#1a1a2a';
+    const rcol=b.rarity?RARITY_COLOR[b.rarity]:'#556';
+    card.style.setProperty('--rcol',rcol);
     card.innerHTML=`
+      ${b.rarity?`<div class="ball-card-rarity-tab">${RARITY_LABEL[b.rarity]}</div>`:''}
       <img class="ball-card-img" src="${b.imgUrl||''}" onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='flex';" alt="">
       <div class="img-fallback">${b.emoji||'⚪'}</div>
       ${!b.unlocked?`<div class="ball-card-lock"><span style="font-size:20px;">🔒</span></div>`:''}
-      <div class="ball-card-name" style="color:${b.col};">${b.name}</div>
+      <div class="ball-card-name">${b.name}</div>
       ${_ballStatusHtml(b,active)}`;
     card.onclick=()=>{(b.unlocked?equipBall(b.id):unlockBall(b.id));buildCollectionBalls();};
     grid.appendChild(card);
@@ -1804,15 +1838,17 @@ function unlockChar(key){
 }
 function upgradeCharWithShards(key){
   const c=CHARS[key];if(!c||!sv.unlockedChars.includes(key)||!c.rarity)return;
-  const lv=charLevel(key);if(lv>=MAX_CHAR_LEVEL){toast(charName(c)+' ya está al nivel máximo','#ffe600');return;}
-  const boost=CHAR_UPGRADE_BOOST[c.rarity];
+  const rank=charRank(key);
+  if(rank>=MAX_RANK){toast(charName(c)+' ya está al rango máximo (★★★★★★)','#ffe600');return;}
+  const cost=rankUpgradeCost(c.rarity,rank);
   sv.charShards=sv.charShards||{};
   const haveShards=sv.charShards[key]||0;
-  if(haveShards<boost.shards){toast('Necesitas '+boost.shards+' Fichas de '+charName(c)+' ('+haveShards+'/'+boost.shards+')','#ff4444');return;}
-  if(sv.coins<boost.coins){toast('Necesitas 🪙'+boost.coins+' monedas','#ff4444');return;}
-  sv.charShards[key]=haveShards-boost.shards;sv.coins-=boost.coins;
-  addCharXp(key,boost.xp);saveSv();
-  toast('¡'+charName(c)+' +'+boost.xp+' XP!','#00ff88');
+  if(haveShards<cost.shards){toast('Necesitas '+cost.shards+' Fichas de '+charName(c)+' ('+haveShards+'/'+cost.shards+')','#ff4444');return;}
+  if(sv.coins<cost.coins){toast('Necesitas 🪙'+cost.coins+' monedas','#ff4444');return;}
+  sv.charShards[key]=haveShards-cost.shards;sv.coins-=cost.coins;
+  sv.charRanks=sv.charRanks||{};sv.charRanks[key]=rank+1;
+  saveSv();
+  toast('¡'+charName(c)+' subió a '+'★'.repeat(rank+1)+'!','#ffe600');
   openCardPopup(key,'roster');
 }
 function unlockBall(id){
@@ -2148,7 +2184,7 @@ function showProfile(){
 }
 function closeSettings(){$$('settingsModal').style.display='none';}
 function resetProgress(){
-  sv={coins:0,tickets:0,lF:1,lV:1,lR:1,lB:1,unlockedChars:null,unlockedBalls:null,equippedBall:'default',wins:0,gamesPlayed:0,charLevels:{},charXp:{},storyChapter:0,tournamentRound:0,gameMode:'quick',infiniteFloor:1,infiniteBest:0,challengeProgress:{},dailySeed:0,dailyDone:[],achievements:{},comboBest:0,storyProgress:{},charShards:{},ballShards:{},chests:0,lastDailyChestTs:0};
+  sv={coins:0,tickets:0,lF:1,lV:1,lR:1,lB:1,unlockedChars:null,unlockedBalls:null,equippedBall:'default',wins:0,gamesPlayed:0,charLevels:{},charXp:{},charRanks:{},storyChapter:0,tournamentRound:0,gameMode:'quick',infiniteFloor:1,infiniteBest:0,challengeProgress:{},dailySeed:0,dailyDone:[],achievements:{},comboBest:0,storyProgress:{},charShards:{},ballShards:{},chests:0,lastDailyChestTs:0};
   // Re-sincroniza los flags .unlocked en memoria a su valor por defecto de cada definición
   Object.values(CHARS).forEach(c=>{c.unlocked=!!c._defaultUnlocked;});
   BALL_SKINS.forEach(b=>{b.unlocked=!!b._defaultUnlocked;});
@@ -2209,7 +2245,7 @@ const CHARS={
     name:'Mordecai',role:'ATAQUE',col:'#00c8ff',unlocked:true,atq:4,def:2,spd:3,
     icon:'https://chibi.iitranq.co.uk/AenvlqnAYIn7.jpg',
     img:'https://chibi.iitranq.co.uk/AzGqed7GTFey.png',
-    rarity:'common',shardImg:'https://chibi.iitranq.co.uk/AenvlqnAYIn7.jpg',
+    rarity:'common',rank:1,shardImg:'https://chibi.iitranq.co.uk/AenvlqnAYIn7.jpg',
     sprites:mkSprites(
       'https://chibi.iitranq.co.uk/AzGqed7GTFey.png',                                                                                    // idle
       'https://static.wikia.nocookie.net/regularshow/images/4/4c/Mordecai_running.gif/revision/latest/scale-to-width-down/200',           // walk (GIF)
@@ -2225,7 +2261,7 @@ const CHARS={
     name:'Rigby',role:'VELOCIDAD',col:'#aa7733',unlocked:true,atq:3,def:1,spd:5,
     icon:'https://chibi.iitranq.co.uk/bQdsQ2NRwJHo.jpg',
     img:'https://chibi.iitranq.co.uk/GwVnqPjndnpJ.png',
-    rarity:'common',shardImg:'https://chibi.iitranq.co.uk/bQdsQ2NRwJHo.jpg',
+    rarity:'common',rank:1,shardImg:'https://chibi.iitranq.co.uk/bQdsQ2NRwJHo.jpg',
     sprites:mkSprites(
       'https://chibi.iitranq.co.uk/GwVnqPjndnpJ.png',                                                                                    // idle
       'https://static.wikia.nocookie.net/regularshow/images/6/6e/Rigby_running.gif/revision/latest/scale-to-width-down/200',              // walk (GIF)
@@ -2241,7 +2277,7 @@ const CHARS={
     name:'Skips',role:'DEFENSA',col:'#eeddaa',unlocked:true,atq:2,def:5,spd:2,
     icon:'https://chibi.iitranq.co.uk/nt7oh2f6OSyR.jpg',
     img:'https://chibi.iitranq.co.uk/AjLVlYgSczxD.png',
-    rarity:'common',shardImg:'https://chibi.iitranq.co.uk/nt7oh2f6OSyR.jpg',
+    rarity:'common',rank:1,shardImg:'https://chibi.iitranq.co.uk/nt7oh2f6OSyR.jpg',
     sprites:mkSprites(
       'https://chibi.iitranq.co.uk/AjLVlYgSczxD.png',// idle
       'https://chibi.iitranq.co.uk/vjcVXwKHOOjM.png',// walk/skip (GIF)
@@ -2257,7 +2293,7 @@ const CHARS={
     name:'Benson',role:'EQUILIBRIO',col:'#cc4422',unlocked:false,atq:3,def:3,spd:3,
     icon:'https://chibi.iitranq.co.uk/UFVGIzealxch.jpg',
     img:'https://chibi.iitranq.co.uk/PDP0FW4RvQXS.png',
-    rarity:'common',shardImg:'https://chibi.iitranq.co.uk/UFVGIzealxch.jpg',
+    rarity:'common',rank:1,shardImg:'https://chibi.iitranq.co.uk/UFVGIzealxch.jpg',
     sprites:mkSprites(
       'https://chibi.iitranq.co.uk/PDP0FW4RvQXS.png',                                                                                    // idle
       'https://static.wikia.nocookie.net/regularshow/images/5/5e/Benson_walking.gif/revision/latest/scale-to-width-down/200',             // walk (GIF)
@@ -2273,7 +2309,7 @@ const CHARS={
     name:'Pops',nameEs:'Papaleta',role:'SOPORTE',col:'#ffcc44',unlocked:false,atq:2,def:3,spd:4,
     icon:'https://chibi.iitranq.co.uk/8NpZCgh7d7K6.jpg',
     img:'https://static.wikia.nocookie.net/regularshow/images/9/9b/Pops_character.png/revision/latest/scale-to-width-down/200',
-    rarity:'common',shardImg:'https://chibi.iitranq.co.uk/8NpZCgh7d7K6.jpg',
+    rarity:'common',rank:1,shardImg:'https://chibi.iitranq.co.uk/8NpZCgh7d7K6.jpg',
     sprites:mkSprites(
       'https://static.wikia.nocookie.net/regularshow/images/9/9b/Pops_character.png/revision/latest/scale-to-width-down/200',             // idle
       'https://static.wikia.nocookie.net/regularshow/images/e/e0/Pops_running.gif/revision/latest/scale-to-width-down/200',               // walk
@@ -2289,7 +2325,7 @@ const CHARS={
     name:'Muscle Man',nameEs:'Musculoso',role:'POTENCIA',col:'#44bb44',unlocked:false,atq:5,def:2,spd:1,
     icon:'https://chibi.iitranq.co.uk/VzbZsju4xq8W.jpg',
     img:'https://chibi.iitranq.co.uk/56i08W90Jwvv.png',
-    rarity:'common',shardImg:'https://chibi.iitranq.co.uk/VzbZsju4xq8W.jpg',
+    rarity:'common',rank:1,shardImg:'https://chibi.iitranq.co.uk/VzbZsju4xq8W.jpg',
     sprites:mkSprites(
       'https://chibi.iitranq.co.uk/56i08W90Jwvv.png',                                                                                    // idle
       'https://static.wikia.nocookie.net/regularshow/images/1/1f/Muscle_Man_running.gif/revision/latest/scale-to-width-down/200',         // walk
@@ -2305,7 +2341,7 @@ const CHARS={
     name:'Hi-Five Ghost',nameEs:'Fantasmín',role:'APOYO',col:'#aabbdd',unlocked:false,atq:2,def:4,spd:4,
     icon:'https://chibi.iitranq.co.uk/XLGDl46jjLN4.jpg',
     img:'https://static.wikia.nocookie.net/regularshow/images/d/d4/Hi_Five_Ghost_character.png/revision/latest/scale-to-width-down/200',
-    rarity:'common',shardImg:'https://chibi.iitranq.co.uk/XLGDl46jjLN4.jpg',
+    rarity:'common',rank:1,shardImg:'https://chibi.iitranq.co.uk/XLGDl46jjLN4.jpg',
     sprites:mkSprites(
       'https://static.wikia.nocookie.net/regularshow/images/d/d4/Hi_Five_Ghost_character.png/revision/latest/scale-to-width-down/200',    // idle
       'https://static.wikia.nocookie.net/regularshow/images/2/21/Hi_Five_Ghost_floating.gif/revision/latest/scale-to-width-down/200',     // walk (floating)
@@ -2320,7 +2356,7 @@ const CHARS={
     name:'Eileen',role:'APOYO',col:'#ff8899',unlocked:false,atq:2,def:3,spd:5,
     icon:'https://chibi.iitranq.co.uk/4QQ748IcdJUX.jpg',
     img:'https://static.wikia.nocookie.net/regularshow/images/f/fb/Eileen_character.png/revision/latest/scale-to-width-down/200',
-    rarity:'rare',shardImg:'https://chibi.iitranq.co.uk/4QQ748IcdJUX.jpg',
+    rarity:'rare',rank:2,shardImg:'https://chibi.iitranq.co.uk/4QQ748IcdJUX.jpg',
     sprites:mkSprites(
       'https://static.wikia.nocookie.net/regularshow/images/f/fb/Eileen_character.png/revision/latest/scale-to-width-down/200',           // idle
       'https://static.wikia.nocookie.net/regularshow/images/f/fb/Eileen_character.png/revision/latest/scale-to-width-down/200',           // walk
@@ -2335,7 +2371,7 @@ const CHARS={
     name:'Margaret',nameEs:'Margarita',role:'VELOCIDAD',col:'#ff5566',unlocked:false,atq:3,def:2,spd:5,
     icon:'https://chibi.iitranq.co.uk/oQ1eJ6XbfCaf.jpg',
     img:'https://chibi.iitranq.co.uk/ouHqPIGQKpnX.png',
-    rarity:'rare',shardImg:'https://chibi.iitranq.co.uk/oQ1eJ6XbfCaf.jpg',
+    rarity:'rare',rank:2,shardImg:'https://chibi.iitranq.co.uk/oQ1eJ6XbfCaf.jpg',
     sprites:mkSprites(
       'https://chibi.iitranq.co.uk/ouHqPIGQKpnX.png',         // idle (nuevo arte propio)
       'https://chibi.iitranq.co.uk/ouHqPIGQKpnX.png',         // walk
@@ -2350,7 +2386,7 @@ const CHARS={
     name:'CJ',role:'CONTROL',col:'#aaddff',unlocked:false,atq:3,def:3,spd:3,
     icon:'https://chibi.iitranq.co.uk/zrLzn9EiJ7Se.jpg',
     img:'https://static.wikia.nocookie.net/regularshow/images/3/38/CJ_character.png/revision/latest/scale-to-width-down/200',
-    rarity:'rare',shardImg:'https://chibi.iitranq.co.uk/zrLzn9EiJ7Se.jpg',
+    rarity:'rare',rank:2,shardImg:'https://chibi.iitranq.co.uk/zrLzn9EiJ7Se.jpg',
     sprites:mkSprites(
       'https://static.wikia.nocookie.net/regularshow/images/3/38/CJ_character.png/revision/latest/scale-to-width-down/200',               // idle
       'https://static.wikia.nocookie.net/regularshow/images/3/38/CJ_character.png/revision/latest/scale-to-width-down/200',               // walk
@@ -2365,7 +2401,7 @@ const CHARS={
     name:'Thomas',role:'COMODÍN',col:'#88aaff',unlocked:false,atq:3,def:2,spd:4,
     icon:null,
     img:'https://static.wikia.nocookie.net/regularshow/images/b/b6/Thomas_character.png/revision/latest/scale-to-width-down/200',
-    rarity:'rare',shardImg:'https://static.wikia.nocookie.net/regularshow/images/b/b6/Thomas_character.png/revision/latest/scale-to-width-down/200',
+    rarity:'rare',rank:2,shardImg:'https://static.wikia.nocookie.net/regularshow/images/b/b6/Thomas_character.png/revision/latest/scale-to-width-down/200',
     sprites:mkSprites(
       'https://static.wikia.nocookie.net/regularshow/images/b/b6/Thomas_character.png/revision/latest/scale-to-width-down/200',           // idle
       'https://static.wikia.nocookie.net/regularshow/images/b/b6/Thomas_character.png/revision/latest/scale-to-width-down/200',           // walk
@@ -2381,7 +2417,7 @@ const CHARS={
     name:'Low Five Ghost',nameEs:'Fantasmón',role:'SOPORTE',col:'#88bbdd',unlocked:false,atq:2,def:3,spd:4,
     icon:null,
     img:'https://static.wikia.nocookie.net/regularshow/images/6/69/Low_Five_Ghost.png/revision/latest/scale-to-width-down/200',
-    rarity:'common',shardImg:'https://static.wikia.nocookie.net/regularshow/images/6/69/Low_Five_Ghost.png/revision/latest/scale-to-width-down/200',
+    rarity:'common',rank:1,shardImg:'https://static.wikia.nocookie.net/regularshow/images/6/69/Low_Five_Ghost.png/revision/latest/scale-to-width-down/200',
     sprites:mkSprites(
       'https://static.wikia.nocookie.net/regularshow/images/6/69/Low_Five_Ghost.png/revision/latest/scale-to-width-down/200',
       'https://static.wikia.nocookie.net/regularshow/images/6/69/Low_Five_Ghost.png/revision/latest/scale-to-width-down/200',
@@ -2396,7 +2432,7 @@ const CHARS={
     name:'Don',role:'POTENCIA',col:'#dd8844',unlocked:false,atq:5,def:3,spd:2,
     icon:null,
     img:'https://static.wikia.nocookie.net/regularshow/images/9/92/Don_character.png/revision/latest/scale-to-width-down/200',
-    rarity:'rare',shardImg:'https://static.wikia.nocookie.net/regularshow/images/9/92/Don_character.png/revision/latest/scale-to-width-down/200',
+    rarity:'rare',rank:2,shardImg:'https://static.wikia.nocookie.net/regularshow/images/9/92/Don_character.png/revision/latest/scale-to-width-down/200',
     sprites:mkSprites(
       'https://static.wikia.nocookie.net/regularshow/images/9/92/Don_character.png/revision/latest/scale-to-width-down/200',
       'https://static.wikia.nocookie.net/regularshow/images/9/92/Don_character.png/revision/latest/scale-to-width-down/200',
@@ -2411,7 +2447,7 @@ const CHARS={
     name:'Techmo',role:'CONTROL',col:'#00ffcc',unlocked:false,atq:3,def:4,spd:3,
     icon:null,
     img:'https://static.wikia.nocookie.net/regularshow/images/2/25/Techmo.png/revision/latest/scale-to-width-down/200',
-    rarity:'rare',shardImg:'https://static.wikia.nocookie.net/regularshow/images/2/25/Techmo.png/revision/latest/scale-to-width-down/200',
+    rarity:'rare',rank:2,shardImg:'https://static.wikia.nocookie.net/regularshow/images/2/25/Techmo.png/revision/latest/scale-to-width-down/200',
     sprites:mkSprites(
       'https://static.wikia.nocookie.net/regularshow/images/2/25/Techmo.png/revision/latest/scale-to-width-down/200',
       'https://static.wikia.nocookie.net/regularshow/images/2/25/Techmo.png/revision/latest/scale-to-width-down/200',
@@ -2426,7 +2462,7 @@ const CHARS={
     name:'Audrey',role:'ATAQUE',col:'#ff88bb',unlocked:false,atq:4,def:2,spd:4,
     icon:null,
     img:'https://static.wikia.nocookie.net/regularshow/images/8/8c/Audrey_character.png/revision/latest/scale-to-width-down/200',
-    rarity:'common',shardImg:'https://static.wikia.nocookie.net/regularshow/images/8/8c/Audrey_character.png/revision/latest/scale-to-width-down/200',
+    rarity:'common',rank:1,shardImg:'https://static.wikia.nocookie.net/regularshow/images/8/8c/Audrey_character.png/revision/latest/scale-to-width-down/200',
     sprites:mkSprites(
       'https://static.wikia.nocookie.net/regularshow/images/8/8c/Audrey_character.png/revision/latest/scale-to-width-down/200',
       'https://static.wikia.nocookie.net/regularshow/images/8/8c/Audrey_character.png/revision/latest/scale-to-width-down/200',
@@ -2442,7 +2478,7 @@ const CHARS={
     name:'Mordecai Futuro',role:'ATAQUE',col:'#00c8ff',unlocked:false,atq:4,def:2,spd:3,
     icon:'https://chibi.iitranq.co.uk/VOcf0o8BninG.jpg',
     img:'https://chibi.iitranq.co.uk/2aPrWYFQoT91.png',
-    rarity:'common',shardImg:'https://chibi.iitranq.co.uk/VOcf0o8BninG.jpg',
+    rarity:'common',rank:1,shardImg:'https://chibi.iitranq.co.uk/VOcf0o8BninG.jpg',
     sprites:mkSprites('https://chibi.iitranq.co.uk/2aPrWYFQoT91.png'),
     super:'MORDO BLAST',superFn:'superMordecai',leaderBuff:'BUFF: Todo el equipo +1 daño'
   },
@@ -2450,7 +2486,7 @@ const CHARS={
     name:'Rigby Futuro',role:'VELOCIDAD',col:'#aa7733',unlocked:false,atq:3,def:1,spd:5,
     icon:'https://chibi.iitranq.co.uk/YbwhYt5gMKJw.jpg',
     img:'https://chibi.iitranq.co.uk/GwVnqPjndnpJ.png',
-    rarity:'common',shardImg:'https://chibi.iitranq.co.uk/YbwhYt5gMKJw.jpg',
+    rarity:'common',rank:1,shardImg:'https://chibi.iitranq.co.uk/YbwhYt5gMKJw.jpg',
     sprites:mkSprites('https://chibi.iitranq.co.uk/GwVnqPjndnpJ.png'),
     super:'TECH KWON DO',superFn:'superRigby',leaderBuff:'BUFF: Pases +50% velocidad'
   },
@@ -2458,7 +2494,7 @@ const CHARS={
     name:'Skips Futuro',role:'DEFENSA',col:'#eeddaa',unlocked:false,atq:2,def:5,spd:2,
     icon:'https://chibi.iitranq.co.uk/HH0S5DVTkRWy.jpg',
     img:'https://static.wikia.nocookie.net/regularshow/images/c/c4/Young_Skips.png/revision/latest/scale-to-width-down/200',
-    rarity:'common',shardImg:'https://chibi.iitranq.co.uk/HH0S5DVTkRWy.jpg',
+    rarity:'common',rank:1,shardImg:'https://chibi.iitranq.co.uk/HH0S5DVTkRWy.jpg',
     sprites:mkSprites('https://static.wikia.nocookie.net/regularshow/images/c/c4/Young_Skips.png/revision/latest/scale-to-width-down/200'),
     super:'BIONIC BARRIER',superFn:'superSkips',leaderBuff:'BUFF: Ventana de bloqueo x2'
   },
@@ -2466,7 +2502,7 @@ const CHARS={
     name:'Benson Futuro',role:'EQUILIBRIO',col:'#cc4422',unlocked:false,atq:3,def:3,spd:3,
     icon:'https://chibi.iitranq.co.uk/HFU4XLM3Z862.jpg',
     img:'https://chibi.iitranq.co.uk/PDP0FW4RvQXS.png',
-    rarity:'common',shardImg:'https://chibi.iitranq.co.uk/HFU4XLM3Z862.jpg',
+    rarity:'common',rank:1,shardImg:'https://chibi.iitranq.co.uk/HFU4XLM3Z862.jpg',
     sprites:mkSprites(
       'https://chibi.iitranq.co.uk/PDP0FW4RvQXS.png',                                                                                    // idle
       'https://static.wikia.nocookie.net/regularshow/images/5/5e/Benson_walking.gif/revision/latest/scale-to-width-down/200',             // walk (GIF)
@@ -2481,7 +2517,7 @@ const CHARS={
     name:'Future Muscle Man',nameEs:'Musculoso Futuro',role:'POTENCIA',col:'#44bb44',unlocked:false,atq:5,def:2,spd:1,
     icon:'https://chibi.iitranq.co.uk/6KSt3IMR9zuC.jpg',
     img:'https://chibi.iitranq.co.uk/56i08W90Jwvv.png',
-    rarity:'common',shardImg:'https://chibi.iitranq.co.uk/6KSt3IMR9zuC.jpg',
+    rarity:'common',rank:1,shardImg:'https://chibi.iitranq.co.uk/6KSt3IMR9zuC.jpg',
     sprites:mkSprites(
       'https://chibi.iitranq.co.uk/56i08W90Jwvv.png',                                                                                    // idle
       'https://static.wikia.nocookie.net/regularshow/images/1/1f/Muscle_Man_running.gif/revision/latest/scale-to-width-down/200',         // walk
@@ -2497,16 +2533,15 @@ const CHARS={
     name:'Mordecai Botado',role:'ATAQUE',col:'#00c8ff',unlocked:false,atq:4,def:2,spd:3,
     icon:'https://chibi.iitranq.co.uk/NWN0IQeLJJBy.jpg',
     img:'https://chibi.iitranq.co.uk/PH3nL2rYl1zu.png',
-    rarity:'rare',shardImg:'https://chibi.iitranq.co.uk/NWN0IQeLJJBy.jpg',
+    rarity:'rare',rank:2,shardImg:'https://chibi.iitranq.co.uk/NWN0IQeLJJBy.jpg',
     sprites:mkSprites('https://chibi.iitranq.co.uk/PH3nL2rYl1zu.png'),
     super:'MORDO BLAST',superFn:'superMordecai',leaderBuff:'BUFF: Todo el equipo +1 daño'
   },
- //
   young_skips:{
     name:'Skips Joven',role:'DEFENSA',col:'#eeddaa',unlocked:false,atq:2,def:5,spd:2,
-    icon:'🧒',
+    icon:'https://static.wikia.nocookie.net/regularshow/images/c/c4/Young_Skips.png/revision/latest/scale-to-width-down/200',
     img:'https://static.wikia.nocookie.net/regularshow/images/c/c4/Young_Skips.png/revision/latest/scale-to-width-down/200',
-    rarity:'common',shardImg:'🧒',
+    rarity:'common',rank:1,shardImg:'https://static.wikia.nocookie.net/regularshow/images/c/c4/Young_Skips.png/revision/latest/scale-to-width-down/200',
     sprites:mkSprites('https://static.wikia.nocookie.net/regularshow/images/c/c4/Young_Skips.png/revision/latest/scale-to-width-down/200'),
     super:'BIONIC BARRIER',superFn:'superSkips',leaderBuff:'BUFF: Ventana de bloqueo x2'
   },
@@ -2514,7 +2549,7 @@ const CHARS={
     name:'Guardián',role:'LEGENDARIO',col:'#00ffcc',unlocked:false,atq:4,def:4,spd:4,
     icon:null,
     img:'https://static.wikia.nocookie.net/regularshow/images/7/79/Park_Dome.png/revision/latest/scale-to-width-down/200',
-    rarity:'legendary',shardImg:'https://static.wikia.nocookie.net/regularshow/images/7/79/Park_Dome.png/revision/latest/scale-to-width-down/200',
+    rarity:'legendary',rank:4,shardImg:'https://static.wikia.nocookie.net/regularshow/images/7/79/Park_Dome.png/revision/latest/scale-to-width-down/200',
     sprites:mkSprites(
       'https://static.wikia.nocookie.net/regularshow/images/7/79/Park_Dome.png/revision/latest/scale-to-width-down/200',
       'https://static.wikia.nocookie.net/regularshow/images/7/79/Park_Dome.png/revision/latest/scale-to-width-down/200',
@@ -2529,7 +2564,7 @@ const CHARS={
     name:'Anti-Pops',nameEs:'Anti-Papaleta',role:'JEFE',col:'#cc00ff',unlocked:false,atq:10,def:10,spd:10,
     icon:null,
     img:'https://static.wikia.nocookie.net/regularshow/images/5/5d/Anti-Pops.png/revision/latest/scale-to-width-down/200',
-    rarity:'legendary',shardImg:'https://static.wikia.nocookie.net/regularshow/images/5/5d/Anti-Pops.png/revision/latest/scale-to-width-down/200',
+    rarity:'legendary',rank:4,shardImg:'https://static.wikia.nocookie.net/regularshow/images/5/5d/Anti-Pops.png/revision/latest/scale-to-width-down/200',
     sprites:mkSprites(
       'https://static.wikia.nocookie.net/regularshow/images/5/5d/Anti-Pops.png/revision/latest/scale-to-width-down/200',                  // idle
       'https://static.wikia.nocookie.net/regularshow/images/5/5d/Anti-Pops.png/revision/latest/scale-to-width-down/200',                  // walk
@@ -2734,6 +2769,25 @@ function charLevel(k){return Math.min(MAX_CHAR_LEVEL,sv.charLevels[k]||1);}
 function charXp(k){return sv.charXp[k]||0;}
 function xpToNext(k){const lv=charLevel(k);return lv>=MAX_CHAR_LEVEL?0:XP_PER_LEVEL;}
 function lvBonus(k){return (charLevel(k)-1)*0.2;}
+// ── Rango (estrellas): independiente del nivel, sube con fichas+monedas (ver upgradeCharWithShards) ──
+function charRank(k){
+  const c=CHARS[k];if(!c)return 1;
+  const saved=sv.charRanks&&sv.charRanks[k];
+  return Math.min(MAX_RANK,saved||c.rank||1);
+}
+function rankBonus(k){return (charRank(k)-1)*0.2;}
+// Bono TOTAL combinado (nivel + rango), antes de repartirlo según el rol del personaje
+function totalBonus(k){return lvBonus(k)+rankBonus(k);}
+// Reparte el bono total entre daño/defensa/velocidad/curación según el rol del personaje.
+// JEFE (Anti-Pops): el bono completo se aplica a las 4 categorías a la vez, sin repartir.
+function roleBonusParts(k){
+  const c=CHARS[k];if(!c)return{dmg:0,def:0,spd:0,heal:0};
+  const r3=n=>Math.round(n*1000)/1000;
+  const tb=totalBonus(k);
+  if(c.role==='JEFE')return{dmg:r3(tb),def:r3(tb),spd:r3(tb),heal:r3(tb)};
+  const w=getRoleWeights(c.role);
+  return{dmg:r3(tb*w.dmg),def:r3(tb*w.def),spd:r3(tb*w.spd),heal:r3(tb*w.heal)};
+}
 function addCharXp(k,amt){
   if(!k||!CHARS[k])return;const lv=charLevel(k);if(lv>=MAX_CHAR_LEVEL)return;
   const prevLv=lv;const prevXp=charXp(k);
@@ -2827,9 +2881,20 @@ function openCardPopup(k,mode){
   }else{
     cpRarityEl.style.display='none';
   }
+  // Rango (estrellas): independiente del nivel, sube con fichas+monedas
+  const cpRankEl=$$('cpRank');
+  if(c.rarity){
+    const rank=charRank(k);
+    cpRankEl.style.display='block';
+    cpRankEl.style.color=rank>=MAX_RANK?'#ffe600':'#aaa';
+    cpRankEl.textContent='★'.repeat(rank)+'☆'.repeat(MAX_RANK-rank);
+    cpRankEl.title='Rango '+rank+'/'+MAX_RANK;
+  }else{
+    cpRankEl.style.display='none';
+  }
   $$('cpXpFill').style.width=(lv>=MAX_CHAR_LEVEL?100:Math.round(xp/xpMax*100))+'%';
   $$('cpXpTxt').textContent=lv>=MAX_CHAR_LEVEL?'MAX':`${xp}/${xpMax} XP`;
-  const bonus=lvBonus(k);
+  const bonus=totalBonus(k);
   const atqEff=Math.min(5,c.atq+(bonus>.5?1:0));
   const defEff=Math.min(5,c.def+(bonus>1?1:0));
   const spdEff=Math.min(5,c.spd+(bonus>1.5?1:0));
@@ -2863,7 +2928,31 @@ function openCardPopup(k,mode){
           :`<button class="uBtn" onclick="closeCardPopup();show('sRoster');switchCollTab('chests');" style="border-color:${rcol};color:${rcol};">📦 IR A COFRES</button>`}
       </div>`;
     }
-  }else if(mode==='team'){
+  }else{
+    // Personaje ya desbloqueado: mostrar progreso de mejora de RANGO (estrellas), siempre visible
+    if(c.rarity){
+      const rank=charRank(k);
+      if(rank>=MAX_RANK){
+        btns+=`<div style="font-size:6px;color:#ffe600;text-align:center;width:100%;margin-bottom:4px;">★ RANGO MÁXIMO ★</div>`;
+      }else{
+        const cost=rankUpgradeCost(c.rarity,rank);
+        sv.charShards=sv.charShards||{};
+        const haveShards=sv.charShards[k]||0;
+        const haveCoins=sv.coins||0;
+        const canUpgrade=haveShards>=cost.shards&&haveCoins>=cost.coins;
+        const rcol=RARITY_COLOR[c.rarity];
+        btns+=`<div style="width:100%;display:flex;flex-direction:column;gap:5px;margin-bottom:6px;">
+          <div style="font-size:5.5px;color:#889;text-align:center;">MEJORAR A ${'★'.repeat(rank+1)}${'☆'.repeat(MAX_RANK-rank-1)}</div>
+          <div style="display:flex;justify-content:center;gap:10px;font-size:6px;">
+            <span style="color:${haveShards>=cost.shards?'#00ff88':'#ff4444'};">🎟️ ${haveShards}/${cost.shards}</span>
+            <span style="color:${haveCoins>=cost.coins?'#00ff88':'#ff4444'};">🪙 ${haveCoins}/${cost.coins}</span>
+          </div>
+          <button class="uBtn" onclick="upgradeCharWithShards('${k}')" ${canUpgrade?'':'disabled'} style="border-color:${canUpgrade?rcol:'#444'};color:${canUpgrade?rcol:'#666'};${canUpgrade?'':'cursor:not-allowed;opacity:.5;'}">⬆ MEJORAR RANGO</button>
+        </div>`;
+      }
+    }
+  }
+  if(mode==='team'){
     const isSel=selectedChars.has(k);const isLeader=leaderKey===k;
     if(isSel&&!isLeader)btns+=`<button class="uBtn" onclick="setLeader('${k}');closeCardPopup();" style="border-color:#cc44ff;color:#cc44ff;">⭐ HACER LÍDER</button>`;
     btns+=`<button class="uBtn" onclick="teamToggleChar('${k}');closeCardPopup();" style="border-color:${isSel?'#ff4455':'var(--G)'};color:${isSel?'#ff4455':'var(--G)'};">${isSel?'QUITAR DEL EQUIPO':'+ AÑADIR AL EQUIPO'}</button>`;
@@ -3142,7 +3231,9 @@ class Fighter{
     this._statBoost=statBoost||0; // damage bonus for infinite mode scaling
     this.jumpH=0;this.jumpV=0;this.jumping=false;this.hitFlash=0;this.frozen=0;this.poisoned=0;this.armor=0;
     this.idle=Math.random()*Math.PI*2;this.targetX=x;this.targetY=y;this.moveTimer=0;
-    this.spd=1.0+Math.random()*.5;this.setTarget();this.img=null;this._loadSprite(defObj);
+    this.spd=1.0+Math.random()*.5;
+    if(key&&CHARS[key]){const spdBonus=roleBonusParts(key).spd;if(spdBonus>0)this.spd*=(1+spdBonus);}
+    this.setTarget();this.img=null;this._loadSprite(defObj);
     this.deathTimer=0;this.deathAnim=false;this.scaleY=1;this.scaleX=1;this.squashT=0;this.recoilX=0;
   }
   _loadSprite(defObj){
@@ -3223,6 +3314,8 @@ class Fighter{
   }
   takeDmg(d,ignoreArmor=false){
     if(!this.alive)return;if(this.armor>0&&!ignoreArmor){this.armor--;spawnFloat('ARMADURA!',this.x+this.w/2,this.y-10,'#aaaaaa');return;}
+    // Bonus de RANGO+NIVEL: reduce el daño recibido según el % de defensa del propio personaje (tope 50%)
+    if(this.key&&CHARS[this.key]){const defBonus=Math.min(.5,roleBonusParts(this.key).def);if(defBonus>0)d=Math.max(1,Math.round(d*(1-defBonus)));}
     const _prev=this.hp;this.hp=Math.max(0,this.hp-d);const _actual=_prev-this.hp;
     if(_actual>0){if(this.side==='r')bStats.dmg+=_actual;else bStats.recv+=_actual;sfxHit();}
     this.hitFlash=16;this._hurtTimer=22;this.recoilX=this.side==='r'?4:-4;spawnFloat(`-${d}`,this.x+this.w/2,this.y-8,'#ff4444');spark(this.x+this.w/2,this.y+this.h/2,this.col,6);
@@ -3955,16 +4048,21 @@ window.superMordecai=function(h){const ve=teamE.filter(j=>j.alive);explosion(W/2
 window.superRigby=function(h){const ve=teamE.filter(j=>j.alive);if(!ve.length)return;const tgt=ve[Math.floor(Math.random()*ve.length)];spawnFloat('TECH KWON DO!',h.x+h.w/2,h.y-20,'#88cc44');setTimeout(()=>{tgt.takeDmg(4,true);spark(tgt.x+tgt.w/2,tgt.y+tgt.h/2,tgt.col,12);updHUD();checkWin();},300);};
 window.superSkips=function(h){skipsShield=true;teamJ.filter(j=>j.alive).forEach(j=>j.armor=2);spawnFloat('BARRERA BIÓNICA!',h.x+h.w/2,h.y-20,'#bb88ff');spawnFloat('EQUIPO PROTEGIDO',W/2,100,'#aaaaaa');};
 window.superBenson=function(h){rageJ=100;updRageBtn();const ve=teamE.filter(j=>j.alive);if(ve.length){const t=ve[Math.floor(Math.random()*ve.length)];t.takeDmg(2);}spawnFloat('RAGE BURST!',W/2,H/2,'#ff6644');};
-window.superPops=function(h){teamJ.filter(j=>j.alive).forEach(j=>j.heal(1));spawnFloat('JOLLY GOOD!',W/2,H/2,'#ffcc00');};
+function _healAmount(caster){
+  if(!caster||!caster.key||!CHARS[caster.key])return 1;
+  const healBonus=roleBonusParts(caster.key).heal;
+  return healBonus>0?Math.ceil(1*(1+healBonus)):1;
+}
+window.superPops=function(h){const amt=_healAmount(h);teamJ.filter(j=>j.alive).forEach(j=>j.heal(amt));spawnFloat('JOLLY GOOD!',W/2,H/2,'#ffcc00');};
 window.superMuscle=function(h){const ve=teamE.filter(j=>j.alive);if(!ve.length)return;const tgt=ve.reduce((a,b)=>a.hp>b.hp?a:b);tgt.takeDmg(3);spawnFloat('MY MOM!!',h.x+h.w/2,h.y-25,'#44bb44');spark(W/2,H/2,'#44bb44',20);};
 window.superHifive=function(h){const ve=teamE.filter(j=>j.alive);if(ve.length){const t=ve[Math.floor(Math.random()*ve.length)];t.frozen=2;spawnFloat('GHOST PASS!',t.x,t.y-20,'#aabbdd');}};
-window.superEileen=function(h){teamJ.filter(j=>j.alive).forEach(j=>j.heal(1));spawnFloat('CRUSH STUDY!',W/2,H/2,'#ff8899');};
+window.superEileen=function(h){const amt=_healAmount(h);teamJ.filter(j=>j.alive).forEach(j=>j.heal(amt));spawnFloat('CRUSH STUDY!',W/2,H/2,'#ff8899');};
 window.superMargaret=function(h){const ve=teamE.filter(j=>j.alive);if(ve.length){throwBall(h,ve[0],false,true,4);}spawnFloat('WING STRIKE!',h.x,h.y-20,'#ff5566');};
 window.superCJ=function(h){teamE.filter(j=>j.alive).forEach(j=>j.frozen=2);spawnFloat('CLOUD STORM!',W/2,H/2,'#aaddff');explosion(W/2,H/2);};
 window.superThomas=function(h){if(floorPowerups.length){const p=floorPowerups.pop();applyPowerup(p.def);spawnFloat('SPY MOVE!',h.x,h.y-20,'#88aaff');}else{addRage('j',40);spawnFloat('SPY BOOST!',h.x,h.y-20,'#88aaff');}};
 window.superAntiPops=function(h){teamE.filter(j=>j.alive).forEach(j=>j.takeDmg(2));teamJ.filter(j=>j.alive).forEach(j=>j.armor=1);spawnFloat('SINGULARIDAD!',W/2,H/2,'#cc00ff');explosion(W/2,H/2);};
-window.superGC=function(h){teamJ.filter(j=>j.alive).forEach(j=>{j.heal(1);j.armor=1;});spawnFloat('PARK SHIELD!',W/2,H/2,'#00ffcc');};
-window.superLow5=function(h){const ve=teamE.filter(j=>j.alive);if(ve.length){ve.forEach(j=>{j.frozen=1;});spawnFloat('LOW FIVE BLAST!',W/2,H/2,'#88bbdd');teamJ.filter(j=>j.alive).forEach(j=>j.heal(1));}};
+window.superGC=function(h){const amt=_healAmount(h);teamJ.filter(j=>j.alive).forEach(j=>{j.heal(amt);j.armor=1;});spawnFloat('PARK SHIELD!',W/2,H/2,'#00ffcc');};
+window.superLow5=function(h){const amt=_healAmount(h);const ve=teamE.filter(j=>j.alive);if(ve.length){ve.forEach(j=>{j.frozen=1;});spawnFloat('LOW FIVE BLAST!',W/2,H/2,'#88bbdd');teamJ.filter(j=>j.alive).forEach(j=>j.heal(amt));}};
 window.superDon=function(h){const ve=teamE.filter(j=>j.alive);spawnFloat('SUGAR RUSH!',W/2,H/2,'#dd8844');ve.forEach(e=>{e.takeDmg(2);});teamJ.filter(j=>j.alive).forEach(j=>{j._donBoost=2;});};
 window.superTechmo=function(h){teamE.filter(j=>j.alive).forEach(e=>{e._superDisabled=3;e.frozen=1;});spawnFloat('TECH HACK!',W/2,H/2,'#00ffcc');};
 window.superAudrey=function(h){const ve=teamE.filter(j=>j.alive);explosion(W/2,H/2);spawnFloat('EAGLE DIVE!',W/2,80,'#ff88bb');if(ve.length){const t=ve.reduce((a,b)=>b.hp>a.hp?b:a);t.takeDmg(4,true);spawnFloat('-4!',t.x,t.y-20,'#ff88bb');}};
@@ -4153,6 +4251,8 @@ function onImpact(){
     if(ball.type==='fireball'){dmg+=3;spawnFloat('FIREBALL!',dest.x,dest.y-20,'#ff4400');explosion(dest.x+dest.w/2,dest.y);}
     if(ball.type==='poisonball'){dest.poisoned=3;spawnFloat('VENENO!',dest.x,dest.y-20,'#00cc44');}
     if(ball.type==='blastball'){const ot=dest.side==='l'?teamE:teamJ;ot.filter(j=>j.alive&&j!==dest).forEach(j=>{if(Math.sqrt((j.x-dest.x)**2+(j.y-dest.y)**2)<120)j.takeDmg(1);});spawnFloat('BLAST AOE!',dest.x,dest.y-20,'#ff8800');explosion(dest.x+dest.w/2,dest.y);}
+    // Bonus de RANGO+NIVEL: el personaje que lanza aplica su % de daño (según su rol) como multiplicador
+    if(src&&src.key&&CHARS[src.key]){const dmgBonus=roleBonusParts(src.key).dmg;if(dmgBonus>0)dmg=Math.round(dmg*(1+dmgBonus));}
     dest.takeDmg(dmg);msg('¡IMPACTO en '+(dest.nameEs&&_lang==='es'?dest.nameEs:dest.name)+'! -'+dmg+' HP'+(ball.type!=='normal'?' ['+ball.type.toUpperCase()+']':''));
     shakeF=10;shakeA=6;triggerHitFlash(ball.type==='fireball'?'#ff4400':ball.type==='poisonball'?'#00cc44':'#ffffff');if(dest.alive){ball.owner=dest;}ball.charge=0;
     if(src&&src.side==='l'){addRage('j',15+(ball.type!=='normal'?10:0));addCombo();}else{addRage('e',15);if(src&&src.side==='r')resetCombo();}
