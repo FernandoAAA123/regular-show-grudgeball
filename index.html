@@ -430,6 +430,8 @@ body.mode-pc .mTitleImg{max-width:min(540px,55vw);max-height:28vh;margin-top:cla
   box-shadow:0 2px 8px rgba(0,0,0,.35);
 }
 .ball-card:hover{transform:translateY(-4px);box-shadow:0 8px 20px rgba(0,0,0,.45);}
+.chest-stack-card:hover{transform:translateY(-4px) scale(1.02);}
+.chest-stack-card:active{transform:scale(.96);}
 .ball-card.equipped{border-color:var(--ball-col,#ff5500);box-shadow:0 0 20px color-mix(in srgb,var(--ball-col,#ff5500) 50%,transparent);}
 .ball-card-rarity-tab{
   position:absolute;top:0;left:0;font-size:4px;font-family:'Press Start 2P',monospace;
@@ -535,6 +537,51 @@ canvas{width:100%;max-width:820px;height:auto;display:block;
 @keyframes legendGlow{from{box-shadow:0 0 10px #ff8800;}to{box-shadow:0 0 28px #ff8800,0 0 50px rgba(255,200,0,.3);}}
 .mm-pulse{animation:mmPulse 1s ease-in-out infinite;}
 @keyframes mmPulse{0%,100%{opacity:.4;}50%{opacity:1;}}
+
+/* ── CHEST OPENING ANIMATION ──────────────────── */
+@keyframes chestShake{
+  0%,100%{transform:translateX(0) rotate(0);}
+  10%{transform:translateX(-6px) rotate(-4deg);}
+  20%{transform:translateX(6px) rotate(4deg);}
+  30%{transform:translateX(-8px) rotate(-5deg);}
+  40%{transform:translateX(8px) rotate(5deg);}
+  50%{transform:translateX(-6px) rotate(-4deg);}
+  60%{transform:translateX(6px) rotate(4deg);}
+  70%{transform:translateX(-4px) rotate(-2deg);}
+  80%{transform:translateX(4px) rotate(2deg);}
+  90%{transform:translateX(-2px) rotate(-1deg);}
+}
+@keyframes chestGlowPulse{
+  0%,100%{filter:drop-shadow(0 0 6px currentColor);}
+  50%{filter:drop-shadow(0 0 26px currentColor) drop-shadow(0 0 46px currentColor);}
+}
+@keyframes chestPop{
+  0%{transform:scale(1);}
+  40%{transform:scale(1.3);}
+  100%{transform:scale(0);opacity:0;}
+}
+@keyframes chestFlashBurst{
+  0%{opacity:0;transform:scale(.3);}
+  35%{opacity:1;transform:scale(1.6);}
+  100%{opacity:0;transform:scale(2.4);}
+}
+@keyframes rewardFlipIn{
+  0%{transform:rotateY(90deg) scale(.4);opacity:0;}
+  60%{transform:rotateY(-12deg) scale(1.08);opacity:1;}
+  100%{transform:rotateY(0) scale(1);opacity:1;}
+}
+@keyframes rewardFadeIn{
+  from{transform:scale(.7);opacity:0;}
+  to{transform:scale(1);opacity:1;}
+}
+@keyframes rewardEpicGlow{
+  0%,100%{box-shadow:0 0 16px currentColor;}
+  50%{box-shadow:0 0 36px currentColor,0 0 60px currentColor;}
+}
+@keyframes rewardLegendaryGlow{
+  0%,100%{box-shadow:0 0 22px currentColor,0 0 10px currentColor inset;}
+  50%{box-shadow:0 0 50px currentColor,0 0 90px currentColor,0 0 18px currentColor inset;}
+}
 
 /* ── CHAR ICONS (grid squares) ──────────────────── */
 .iconGrid{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-start;}
@@ -1869,6 +1916,33 @@ function equipBall(id){const b=BALL_SKINS.find(x=>x.id===id);if(!b||!b.unlocked)
 // ════════════════════════════════════════════════════════════
 const CHEST_DAILY_MS=24*60*60*1000;
 
+// ── Tipos de cofre ──────────────────────────────────────────
+// Cada tipo puede provenir de varias fuentes (ej. el Básico llega por diario
+// Y por victoria). Para agregar un tipo nuevo en el futuro: sumarlo aquí y
+// llamar a addChest('id') desde donde corresponda — el resto (almacén,
+// animación) ya lo soporta automáticamente.
+const CHEST_TYPES={
+  basic:  {id:'basic',  name:'COFRE BÁSICO',  icon:'📦', col:'#aa44dd', desc:'2 recompensas · fichas comunes a raras con más frecuencia',
+           weightBoost:0},
+  premium:{id:'premium',name:'COFRE PREMIUM', icon:'🎁', col:'#ffaa00', desc:'2 recompensas · mejor probabilidad de épico y legendario',
+           weightBoost:1},
+};
+function _chestInv(){
+  sv.chestInventory=sv.chestInventory||{};
+  // Migración única: si existe el contador viejo sv.chests (número plano),
+  // se vuelca a chestInventory.basic una sola vez y no se vuelve a tocar.
+  if(typeof sv.chests==='number'&&sv.chests>0&&!sv._chestsMigrated){
+    sv.chestInventory.basic=(sv.chestInventory.basic||0)+sv.chests;
+    sv._chestsMigrated=true;
+  }
+  Object.keys(CHEST_TYPES).forEach(t=>{sv.chestInventory[t]=sv.chestInventory[t]||0;});
+  return sv.chestInventory;
+}
+function chestCount(type){return _chestInv()[type]||0;}
+function totalChests(){return Object.values(_chestInv()).reduce((a,b)=>a+b,0);}
+function addChest(type,n){n=n||1;const inv=_chestInv();inv[type]=(inv[type]||0)+n;saveSv();}
+function consumeChest(type){const inv=_chestInv();if((inv[type]||0)<1)return false;inv[type]--;saveSv();return true;}
+
 // Cada cofre da 2 recompensas independientes, cada una sorteada de esta tabla
 // Balones elegibles para caer de cofres (excluye exclusivos de evento/personaje y ya desbloqueados)
 function _eligibleChestBalls(){
@@ -1879,21 +1953,23 @@ function _eligibleChestChars(){
   // porque las fichas sobrantes ahora sirven para MEJORARLO (fichas + monedas).
   return Object.entries(CHARS).filter(([k,c])=>c.rarity).map(([k,c])=>({key:k,...c}));
 }
-function _pickWeightedRarity(){
-  // Ahora es más fácil sacar fichas comunes/raras (mayor probabilidad)
+function _pickWeightedRarity(boost){
+  // Ahora es más fácil sacar fichas comunes/raras (mayor probabilidad).
+  // boost (usado por cofres premium) desplaza la curva hacia rarezas altas.
+  boost=boost||0;
   const r=Math.random();
-  if(r<0.58)return'common';
-  if(r<0.85)return'rare';
-  if(r<0.96)return'epic';
+  if(r<0.58-boost*0.20)return'common';
+  if(r<0.85-boost*0.10)return'rare';
+  if(r<0.96-boost*0.03)return'epic';
   return'legendary';
 }
-function _rollChestReward(){
+function _rollChestReward(boost){
   const r=Math.random();
   if(r<0.55){
     // Ficha de PERSONAJE: elige un personaje específico al azar, ponderado por su rareza
     const pool=_eligibleChestChars();
-    if(!pool.length)return _rollBallReward();
-    const rarity=_pickWeightedRarity();
+    if(!pool.length)return _rollBallReward(boost);
+    const rarity=_pickWeightedRarity(boost);
     let candidates=pool.filter(c=>c.rarity===rarity);
     if(!candidates.length)candidates=pool;
     const char=candidates[Math.floor(Math.random()*candidates.length)];
@@ -1901,13 +1977,13 @@ function _rollChestReward(){
     const amt=char.rarity==='common'?6:char.rarity==='rare'?4:char.rarity==='epic'?2:1;
     return {kind:'char',charKey:char.key,amt};
   }
-  return _rollBallReward();
+  return _rollBallReward(boost);
 }
-function _rollBallReward(){
+function _rollBallReward(boost){
   // Ficha de BALÓN: elige un balón específico al azar, ponderado por su rareza
   const pool=_eligibleChestBalls();
   if(!pool.length)return _rollCharFallback();
-  const rarity=_pickWeightedRarity();
+  const rarity=_pickWeightedRarity(boost);
   let candidates=pool.filter(b=>b.rarity===rarity);
   if(!candidates.length)candidates=pool;
   const ball=candidates[Math.floor(Math.random()*candidates.length)];
@@ -1921,41 +1997,128 @@ function _rollCharFallback(){
   const char=pool[Math.floor(Math.random()*pool.length)];
   return {kind:'char',charKey:char.key,amt:6};
 }
-function openChest(){
-  sv.chests=sv.chests||0;
-  if(sv.chests<1){toast('No tienes cofres. ¡Gana partidas o reclama el diario!','#ff4444');return;}
-  sv.chests--;
+// Calcula y aplica las recompensas de un cofre (lógica de sorteo, sin tocar UI/animación).
+// Devuelve resultItems para que la animación los revele paso a paso.
+function _resolveChestOpen(chestType){
+  chestType=chestType||'basic';
+  const boost=(CHEST_TYPES[chestType]&&CHEST_TYPES[chestType].weightBoost)||0;
   sv.charShards=sv.charShards||{};sv.ballShards=sv.ballShards||{};
-  const rewards=[_rollChestReward(),_rollChestReward()];
+  const rewards=[_rollChestReward(boost),_rollChestReward(boost)];
   const resultItems=[];
   rewards.forEach(r=>{
     if(r.kind==='ball'){
       sv.ballShards[r.ballId]=(sv.ballShards[r.ballId]||0)+r.amt;
       const b=BALL_SKINS.find(x=>x.id===r.ballId);
-      resultItems.push({img:b.imgUrl,emoji:b.emoji,label:'+'+r.amt+' '+b.name,col:b.col});
+      resultItems.push({img:b.imgUrl,emoji:b.emoji,label:'+'+r.amt+' '+b.name,col:b.col,rarity:b.rarity||'common'});
     }else if(r.kind==='char'){
       sv.charShards[r.charKey]=(sv.charShards[r.charKey]||0)+r.amt;
       const c=CHARS[r.charKey];
-      resultItems.push({img:c.shardImg||c.icon||c.img,emoji:'🧍',label:'+'+r.amt+' '+charName(c),col:RARITY_COLOR[c.rarity||'common']});
+      resultItems.push({img:c.shardImg||c.icon||c.img,emoji:'🧍',label:'+'+r.amt+' '+charName(c),col:RARITY_COLOR[c.rarity||'common'],rarity:c.rarity||'common'});
     }
   });
   saveSv();
   window._lastChestResults=resultItems;
+  return resultItems;
+}
+function openChest(type){
+  type=type||'basic';
+  if(!consumeChest(type)){toast('No tienes ese cofre. ¡Gana partidas o reclama el diario!','#ff4444');return;}
+  playChestOpenAnimation(type);
+}
+// ────────────────────────────────────────────────────────────
+// ANIMACIÓN DE APERTURA DE COFRE
+// Orquesta: sacudida/brillo → "explosión" del cofre → revelación
+// de cada recompensa una por una, con espectacularidad según rareza.
+// ────────────────────────────────────────────────────────────
+const CHEST_REVEAL_STYLE={
+  common:   {anim:'rewardFadeIn .4s ease-out',glow:'',col:'#8899aa',confetti:false},
+  rare:     {anim:'rewardFadeIn .4s ease-out',glow:'box-shadow:0 0 16px #3399ff;',col:'#3399ff',confetti:false},
+  epic:     {anim:'rewardFlipIn .55s cubic-bezier(.2,.8,.3,1.2)',glow:'animation:rewardEpicGlow 1.1s ease-in-out infinite;',col:'#cc44ff',confetti:false},
+  legendary:{anim:'rewardFlipIn .6s cubic-bezier(.2,.8,.3,1.2)',glow:'animation:rewardLegendaryGlow 1s ease-in-out infinite;',col:'#ffaa00',confetti:true},
+};
+let _chestAutoCloseTimer=null;
+function playChestOpenAnimation(type){
+  type=type||'basic';
+  const def=CHEST_TYPES[type]||CHEST_TYPES.basic;
+  const overlay=$$('chestOpenOverlay'),stage=$$('chestOpenStage'),icon=$$('chestOpenIcon'),
+        flash=$$('chestOpenFlash'),wrap=$$('chestOpenRewardWrap'),hint=$$('chestOpenHint'),
+        btn=$$('chestOpenContinueBtn');
+  if(!overlay)return;
+  _chestAutoCloseTimer&&clearTimeout(_chestAutoCloseTimer);
+  // Reset de estado visual
+  icon.style.display='block';icon.style.animation='none';icon.style.color=def.col;
+  icon.textContent=def.icon;
+  wrap.style.display='none';wrap.innerHTML='';
+  flash.style.opacity='0';flash.style.transform='scale(1)';flash.style.transition='none';
+  btn.style.display='none';
+  hint.style.display='block';hint.textContent='Toca el cofre…';
+  overlay.style.display='flex';
+  const openNow=()=>{
+    icon.removeEventListener('click',openNow);
+    hint.style.display='none';
+    icon.style.animation='chestShake .6s ease-in-out 2, chestGlowPulse .3s ease-in-out 4';
+    setTimeout(()=>{
+      // "Explosión" del cofre: flash + pop
+      flash.style.transition='opacity .25s ease-out, transform .4s ease-out';
+      flash.style.opacity='1';flash.style.transform='scale(1.4)';
+      icon.style.animation='chestPop .35s ease-in forwards';
+      setTimeout(()=>{
+        flash.style.opacity='0';
+        icon.style.display='none';
+        const resultItems=_resolveChestOpen(type);
+        wrap.style.display='flex';
+        _revealChestRewards(resultItems,0,wrap,btn);
+      },380);
+    },1250);
+  };
+  icon.onclick=openNow;
+  hint.onclick=openNow;
+}
+function _revealChestRewards(items,i,wrap,btn){
+  if(i>=items.length){
+    btn.style.display='inline-block';
+    _chestAutoCloseTimer=setTimeout(_chestOpenContinue,3500);
+    return;
+  }
+  const it=items[i];
+  const style=CHEST_REVEAL_STYLE[it.rarity]||CHEST_REVEAL_STYLE.common;
+  const card=document.createElement('div');
+  card.style.cssText=`background:#0a0a18;border:2px solid ${style.col}88;border-radius:14px;padding:18px 22px;text-align:center;min-width:160px;color:${style.col};animation:${style.anim};${style.glow}`;
+  card.innerHTML=`
+    ${it.img?`<img src="${it.img}" style="width:54px;height:54px;object-fit:contain;margin:0 auto;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='block';">
+      <div style="display:none;font-size:38px;">${it.emoji||'⚪'}</div>`
+      :`<div style="font-size:38px;">${it.emoji||'⚪'}</div>`}
+    <div style="font-size:5px;color:#778;letter-spacing:1px;margin-top:10px;">${RARITY_LABEL[it.rarity]||'COMÚN'}</div>
+    <div style="font-size:7px;color:${style.col};margin-top:6px;line-height:1.5;">${it.label}</div>`;
+  wrap.appendChild(card);
+  if(style.confetti&&typeof startConfetti==='function')startConfetti();
+  setTimeout(()=>_revealChestRewards(items,i+1,wrap,btn),650);
+}
+function _chestOpenContinue(){
+  _chestAutoCloseTimer&&clearTimeout(_chestAutoCloseTimer);
+  const overlay=$$('chestOpenOverlay');if(overlay)overlay.style.display='none';
   buildCollectionChests();
+}
+// El fondo solo cierra el overlay una vez reveladas todas las recompensas (botón ya visible);
+// antes de eso, tocar fuera del cofre no debe interrumpir la animación.
+function _chestOpenBackdropClick(){
+  const btn=$$('chestOpenContinueBtn');
+  if(btn&&btn.style.display!=='none')_chestOpenContinue();
 }
 function claimDailyChest(){
   sv.lastDailyChestTs=sv.lastDailyChestTs||0;
   if(Date.now()-sv.lastDailyChestTs<CHEST_DAILY_MS){toast('Ya reclamaste tu cofre diario. Vuelve más tarde.','#ff8800');return;}
-  sv.lastDailyChestTs=Date.now();sv.chests=(sv.chests||0)+1;saveSv();
+  sv.lastDailyChestTs=Date.now();addChest('basic',1);
   toast('📦 ¡Cofre diario reclamado!','#00ff88');buildCollectionChests();
 }
 // Chance de obtener un cofre extra al ganar una partida (se llama desde el flujo de victoria)
 function maybeDropWinChest(){
-  if(Math.random()<0.20){sv.chests=(sv.chests||0)+1;saveSv();toast('📦 ¡Cofre obtenido por la victoria!','#00d4ff');}
+  if(Math.random()<0.20){addChest('basic',1);toast('📦 ¡Cofre obtenido por la victoria!','#00d4ff');}
 }
 function buildCollectionChests(){
   const cont=$$('collChestsContent');if(!cont)return;
-  sv.charShards=sv.charShards||{};sv.ballShards=sv.ballShards||{};sv.chests=sv.chests||0;
+  sv.charShards=sv.charShards||{};sv.ballShards=sv.ballShards||{};
+  _chestInv();
   const msLeft=Math.max(0,CHEST_DAILY_MS-(Date.now()-(sv.lastDailyChestTs||0)));
   const canDaily=msLeft<=0;
   const hrs=Math.floor(msLeft/3600000),mins=Math.floor((msLeft%3600000)/60000);
@@ -1980,6 +2143,33 @@ function buildCollectionChests(){
       </div>`;
   }
 
+  // ── ALMACÉN: una tarjeta tocable por cada TIPO de cofre, con su cantidad.
+  // Si no se tiene ninguno de un tipo, no se muestra (no saturar con tarjetas vacías).
+  const ownedTypes=Object.keys(CHEST_TYPES).filter(t=>chestCount(t)>0);
+  const warehouseHtml=ownedTypes.length?`
+      <div style="width:100%;max-width:380px;display:flex;flex-direction:column;gap:8px;">
+        <div style="font-size:7px;color:#cc88ff;letter-spacing:1px;text-align:center;">📦 ALMACÉN DE COFRES</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
+          ${ownedTypes.map(t=>{
+            const def=CHEST_TYPES[t],n=chestCount(t);
+            return `
+            <div class="chest-stack-card" onclick="openChest('${t}')" style="cursor:pointer;background:linear-gradient(160deg,${def.col}22,#0a0818);border:2px solid ${def.col}77;border-radius:16px;padding:16px;text-align:center;min-width:130px;max-width:150px;transition:transform .15s;box-shadow:0 6px 18px rgba(0,0,0,.35);">
+              <div style="font-size:38px;line-height:1;">${def.icon}</div>
+              <div style="font-size:6.5px;color:${def.col};margin-top:8px;letter-spacing:.5px;">${def.name}</div>
+              <div style="font-size:4.5px;color:#778;margin-top:4px;line-height:1.5;">${def.desc}</div>
+              <div style="font-size:9px;color:#fff;margin-top:8px;font-weight:bold;">×${n}</div>
+              <div style="font-size:5px;color:${def.col};margin-top:6px;letter-spacing:1px;">TOCA PARA ABRIR</div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`
+    :`
+      <div style="width:100%;max-width:340px;background:linear-gradient(160deg,#1a1230,#0a0818);border:2px solid #aa44dd33;border-radius:18px;padding:22px;text-align:center;">
+        <div style="font-size:38px;opacity:.5;">📦</div>
+        <div style="font-size:6px;color:#667;margin-top:10px;letter-spacing:1px;">TU ALMACÉN ESTÁ VACÍO</div>
+        <div style="font-size:5px;color:#445;margin-top:6px;">Reclama tu cofre diario o gana partidas para conseguir cofres.</div>
+      </div>`;
+
   cont.innerHTML=`
     <div style="display:flex;flex-direction:column;gap:16px;align-items:center;">
       ${resultsHtml}
@@ -1997,11 +2187,7 @@ function buildCollectionChests(){
       </div>
       <div style="font-size:5px;color:#445;text-align:center;max-width:340px;">Cada personaje y cada balón tiene SU PROPIA ficha única — revisa el progreso específico en PERSONAJES y BALONES.</div>
 
-      <div style="width:100%;max-width:340px;background:linear-gradient(160deg,#1a1230,#0a0818);border:2px solid #aa44dd55;border-radius:18px;padding:22px;text-align:center;box-shadow:0 8px 24px rgba(170,68,221,.15);">
-        <div style="font-size:46px;">📦</div>
-        <div style="font-size:10px;color:#cc88ff;margin-top:8px;letter-spacing:1px;">COFRES: ${sv.chests}</div>
-        <button class="uBtn" style="margin-top:12px;width:100%;border-color:var(--Y);color:var(--Y);" onclick="openChest()" ${sv.chests<1?'disabled style="opacity:.4;"':''}>ABRIR COFRE</button>
-      </div>
+      ${warehouseHtml}
 
       <div style="width:100%;max-width:340px;background:#0d0d1c;border:2px solid #00ff8844;border-radius:14px;padding:14px;text-align:center;">
         <div style="font-size:7px;color:#00ff88;letter-spacing:1px;">COFRE DIARIO GRATIS</div>
@@ -2593,23 +2779,31 @@ const ENEMY_DEFS=[
 const BALL_RARITY_SHARD_COST={common:12,rare:8,epic:5,legendary:3};
 
 const BALL_SKINS=[
-  {id:'default',name:'BALÓN CLÁSICO',col:'#ff5500',glowCol:'#ffea00',rarity:'common',unlocked:true,emoji:'🔴',imgUrl:'https://chibi.iitranq.co.uk/Kph7iBuNx5qy.png'},
-  {id:'red',name:'BALÓN ROJO',col:'#ff3344',glowCol:'#ff8866',rarity:'common',unlocked:false,emoji:'🔴',imgUrl:'https://chibi.iitranq.co.uk/Ziuk0r3EI3ES.png'},
-  {id:'fire',name:'BALÓN DE FUEGO',col:'#ff2200',glowCol:'#ff8800',rarity:'common',unlocked:false,emoji:'🔥',imgUrl:'https://chibi.iitranq.co.uk/mNfxjAAJZ7FS.png'},
-  {id:'ice',name:'BALÓN DE HIELO',col:'#66ddff',glowCol:'#ffffff',rarity:'common',unlocked:false,emoji:'❄️',imgUrl:'https://chibi.iitranq.co.uk/40259UCzTYAj.png'},
-  {id:'draw',name:'BALÓN DIBUJADO',col:'#ffffff',glowCol:'#ffddaa',rarity:'common',unlocked:false,emoji:'✏️',imgUrl:'https://chibi.iitranq.co.uk/e4ezrWhqAITn.png'},
-  {id:'tech',name:'BALÓN TECH',col:'#33ff99',glowCol:'#00ffcc',rarity:'common',unlocked:false,emoji:'⚙️',imgUrl:'https://chibi.iitranq.co.uk/hI5S3PUuMBgX.png'},
-  // ── A partir de aquí: desbloqueo por FICHAS ÚNICAS de cada balón (cofres) ──
-  {id:'pixel',name:'BALÓN 8-BIT',col:'#ffaa00',glowCol:'#ffee44',rarity:'common',unlocked:false,emoji:'🟧',imgUrl:'https://chibi.iitranq.co.uk/VIMXaEIu68ob.png'},
-  {id:'cyber',name:'BALÓN CYBER',col:'#00ffff',glowCol:'#00aaff',rarity:'common',unlocked:false,emoji:'🔵',imgUrl:'https://chibi.iitranq.co.uk/C3iNbxHf9Rui.png'},
-  {id:'electroshock',name:'ELECTROSHOCK',col:'#ffff00',glowCol:'#aaffff',rarity:'common',unlocked:false,emoji:'⚡',imgUrl:'https://chibi.iitranq.co.uk/OLrJ1zWfbGjm.png'},
-  {id:'mint',name:'BALÓN MENTA',col:'#88ffcc',glowCol:'#ccffee',rarity:'common',unlocked:false,emoji:'🍃',imgUrl:'https://chibi.iitranq.co.uk/yc96AbWvYu1m.png'},
-  {id:'lowpoly',name:'BALÓN LOW POLY',col:'#88ccff',glowCol:'#aaffee',rarity:'common',unlocked:false,emoji:'🔷',imgUrl:'https://chibi.iitranq.co.uk/3aDSYMcyP9ao.png'},
-  {id:'ghost',name:'BALÓN FANTASMA',col:'#aaddff',glowCol:'#ffffff',rarity:'common',unlocked:false,emoji:'👻',imgUrl:'https://chibi.iitranq.co.uk/CQolODtxKOAU.png'},
-  {id:'vintage',name:'BALÓN VINTAGE',col:'#cc9966',glowCol:'#ffddaa',rarity:'rare',unlocked:false,emoji:'📻',imgUrl:'https://chibi.iitranq.co.uk/8lZuNiCgbz2X.png'},
-  {id:'galaxy',name:'BALÓN GALAXIA',col:'#cc44ff',glowCol:'#ff44cc',rarity:'rare',unlocked:false,emoji:'🟣',imgUrl:'https://chibi.iitranq.co.uk/zorf4yXz2q7E.png'},
-  {id:'gold',name:'BALÓN ORO',col:'#ffd700',glowCol:'#ffaa00',rarity:'epic',unlocked:false,emoji:'🟡',imgUrl:'https://chibi.iitranq.co.uk/oItH0GUhIOH8.png'},
-  {id:'diamond',name:'BALÓN DIAMANTE',col:'#a8e4ff',glowCol:'#ffffff',rarity:'epic',unlocked:false,emoji:'💎',imgUrl:'https://chibi.iitranq.co.uk/eRLGgfyMgTbc.png'},
+  {id:'default_ball',name:'BALÓN CLÁSICO',col:'#ff5500',glowCol:'#ffea00',rarity:'common',unlocked:true,emoji:'🔴',imgUrl:'https://chibi.iitranq.co.uk/Kph7iBuNx5qy.png'},
+  {id:'red_dodgeball',name:'BALÓN ROJO',col:'#ff3344',glowCol:'#ff8866',rarity:'common',unlocked:false,emoji:'🔴',imgUrl:'https://chibi.iitranq.co.uk/Ziuk0r3EI3ES.png'},
+  {id:'green_ball',name:'BALÓN VERDE',col:'#33aa33',glowCol:'#99ff66',rarity:'common',unlocked:false,emoji:'💚',imgUrl:'https://chibi.iitranq.co.uk/ntFmkj5CVOgM.png'},
+  {id:'pinky_ball',name:'BALÓN PINKY',col:'#cc1166',glowCol:'#ff66cc',rarity:'common',unlocked:false,emoji:'💗',imgUrl:'https://chibi.iitranq.co.uk/wFHGg2J7sfRh.png'},
+  {id:'mint_ball',name:'BALÓN MENTA',col:'#88ffcc',glowCol:'#ccffee',rarity:'common',unlocked:false,emoji:'🍃',imgUrl:'https://chibi.iitranq.co.uk/yc96AbWvYu1m.png'},
+  {id:'inverted_ball',name:'BALÓN INVERTIDO',col:'#222222',glowCol:'#66ffcc',rarity:'common',unlocked:false,emoji:'⚫',imgUrl:'https://chibi.iitranq.co.uk/jpP9X8g3nwVZ.png'},
+  {id:'draw_ball',name:'BALÓN DIBUJADO',col:'#ffffff',glowCol:'#ffddaa',rarity:'common',unlocked:false,emoji:'✏️',imgUrl:'https://chibi.iitranq.co.uk/e4ezrWhqAITn.png'},
+  {id:'tech_ball',name:'BALÓN TECH',col:'#33ff99',glowCol:'#00ffcc',rarity:'common',unlocked:false,emoji:'⚙️',imgUrl:'https://chibi.iitranq.co.uk/hI5S3PUuMBgX.png'},
+  {id:'pixel_ball',name:'BALÓN 8-BIT',col:'#ffaa00',glowCol:'#ffee44',rarity:'common',unlocked:false,emoji:'🟧',imgUrl:'https://chibi.iitranq.co.uk/VIMXaEIu68ob.png'},
+  {id:'volcano_ball',name:'BALÓN VOLCANO',col:'#883311',glowCol:'#ff4422',rarity:'common',unlocked:false,emoji:'🟤',imgUrl:'https://chibi.iitranq.co.uk/VGjgDyybyfbT.png'},
+  {id:'glass_ball',name:'BALÓN DE CRISTAL',col:'#557788',glowCol:'#bbe8ff',rarity:'common',unlocked:false,emoji:'🔘',imgUrl:'https://chibi.iitranq.co.uk/0eMLocPMSPEg.png'},
+  {id:'cyber_ball',name:'BALÓN CYBER',col:'#00ffff',glowCol:'#00aaff',rarity:'common',unlocked:false,emoji:'🔵',imgUrl:'https://chibi.iitranq.co.uk/C3iNbxHf9Rui.png'},
+  {id:'electroshock_ball',name:'ELECTROSHOCK',col:'#ffff00',glowCol:'#aaffff',rarity:'common',unlocked:false,emoji:'⚡',imgUrl:'https://chibi.iitranq.co.uk/OLrJ1zWfbGjm.png'},
+  {id:'flash_ball',name:'FLASH BALL',col:'#aa1122',glowCol:'#ffdd44',rarity:'rare',unlocked:false,emoji:'⚡',imgUrl:'https://chibi.iitranq.co.uk/abFqLhfBsz1M.png'},
+  {id:'lowpoly_ball',name:'BALÓN LOW POLY',col:'#88ccff',glowCol:'#aaffee',rarity:'common',unlocked:false,emoji:'🔷',imgUrl:'https://chibi.iitranq.co.uk/3aDSYMcyP9ao.png'},
+  {id:'ghost_ball',name:'BALÓN FANTASMA',col:'#aaddff',glowCol:'#ffffff',rarity:'rare',unlocked:false,emoji:'👻',imgUrl:'https://chibi.iitranq.co.uk/CQolODtxKOAU.png'},
+  {id:'fire_ball',name:'BALÓN DE FUEGO',col:'#ff2200',glowCol:'#ff8800',rarity:'rare',unlocked:false,emoji:'🔥',imgUrl:'https://chibi.iitranq.co.uk/mNfxjAAJZ7FS.png'},
+  {id:'ice_ball',name:'BALÓN DE HIELO',col:'#66ddff',glowCol:'#ffffff',rarity:'rare',unlocked:false,emoji:'❄️',imgUrl:'https://chibi.iitranq.co.uk/40259UCzTYAj.png'},
+  {id:'vintage_ball',name:'BALÓN VINTAGE',col:'#cc9966',glowCol:'#ffddaa',rarity:'rare',unlocked:false,emoji:'📻',imgUrl:'https://chibi.iitranq.co.uk/8lZuNiCgbz2X.png'},
+  {id:'galaxy_ball',name:'BALÓN GALAXIA',col:'#cc44ff',glowCol:'#ff44cc',rarity:'rare',unlocked:false,emoji:'🟣',imgUrl:'https://chibi.iitranq.co.uk/zorf4yXz2q7E.png'},
+  {id:'spike_ball',name:'BALÓN PÚAS',col:'#444444',glowCol:'#cccccc',rarity:'epic',unlocked:false,emoji:'🔘',imgUrl:'https://chibi.iitranq.co.uk/XTmsnPNQmP0T.png'},
+  {id:'saturn_ball',name:'BALÓN SATURNO',col:'#cc9955',glowCol:'#66eecc',rarity:'epic',unlocked:false,emoji:'🪐',imgUrl:'https://chibi.iitranq.co.uk/3KGaOJOaGhZ2.png'},
+  {id:'eight_ball',name:'BOLA 8',col:'#1a1a1a',glowCol:'#ffffff',rarity:'epic',unlocked:false,emoji:'🎱',imgUrl:'https://chibi.iitranq.co.uk/J8mgbl99my0M.png'},
+  {id:'gold_ball',name:'BALÓN ORO',col:'#ffd700',glowCol:'#ffaa00',rarity:'epic',unlocked:false,emoji:'🟡',imgUrl:'https://chibi.iitranq.co.uk/oItH0GUhIOH8.png'},
+  {id:'diamond_ball',name:'BALÓN DIAMANTE',col:'#a8e4ff',glowCol:'#ffffff',rarity:'epic',unlocked:false,emoji:'💎',imgUrl:'https://chibi.iitranq.co.uk/eRLGgfyMgTbc.png'},
   {id:'chaosphere',name:'CHAOSPHERE',col:'#cc44ff',glowCol:'#ff00ff',rarity:'legendary',unlocked:false,emoji:'🌀',imgUrl:'https://chibi.iitranq.co.uk/XhP12zwmJBlh.png'},
   // ── Exclusivas: se desbloquean automáticamente con un personaje, no se compran ──
   {id:'antiball',name:'ANTI-BALL',col:'#cc00ff',glowCol:'#440044',rarity:'legendary',unlocked:false,emoji:'🌑',imgUrl:'https://chibi.iitranq.co.uk/Vdz2MsjazEQc.png',charUnlock:'antipops'},
@@ -6753,6 +6947,17 @@ window.addEventListener('beforeinstallprompt',(e)=>{
   },2000);
 });
 </script>
+
+<!-- CHEST OPENING OVERLAY -->
+<div id="chestOpenOverlay" onclick="if(event.target===this)_chestOpenBackdropClick();" style="display:none;position:fixed;inset:0;z-index:970;background:rgba(0,0,0,.93);backdrop-filter:blur(10px);flex-direction:column;align-items:center;justify-content:center;padding:20px;">
+  <div id="chestOpenStage" style="position:relative;width:100%;max-width:420px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:280px;">
+    <div id="chestOpenIcon" style="font-size:100px;line-height:1;color:#cc88ff;">📦</div>
+    <div id="chestOpenFlash" style="position:absolute;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,#fff,transparent 70%);opacity:0;pointer-events:none;"></div>
+    <div id="chestOpenRewardWrap" style="display:none;flex-direction:column;align-items:center;gap:14px;"></div>
+    <div id="chestOpenHint" style="margin-top:18px;font-size:6px;color:#667;letter-spacing:1px;">Toca el cofre…</div>
+  </div>
+  <button id="chestOpenContinueBtn" onclick="_chestOpenContinue()" style="display:none;margin-top:22px;font-family:'Press Start 2P',monospace;font-size:9px;padding:13px 26px;border:3px solid #cc88ff;color:#cc88ff;background:rgba(40,0,60,.7);cursor:pointer;border-radius:8px;letter-spacing:1px;transition:all .18s;" onmouseenter="this.style.background='rgba(80,0,120,.9)'" onmouseleave="this.style.background='rgba(40,0,60,.7)'">✔ CONTINUAR</button>
+</div>
 
 <!-- XP RESULTS MODAL -->
 <div id="xpResultsModal" style="display:none;position:fixed;inset:0;z-index:950;background:rgba(0,0,0,.92);backdrop-filter:blur(14px);flex-direction:column;align-items:center;justify-content:center;padding:20px;">
