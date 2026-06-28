@@ -11,6 +11,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Grudgeball">
 <meta name="application-name" content="Grudgeball">
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Regular%20Show%3A%20Grudgeball%20Evolution%22%2C%22short_name%22%3A%22Grudgeball%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23000000%22%2C%22theme_color%22%3A%22%2300d4ff%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fchibi.iitranq.co.uk%2Fmw7fgng37rnJ.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D">
+<link rel="apple-touch-icon" href="https://chibi.iitranq.co.uk/mw7fgng37rnJ.png">
 <meta name="description" content="Regular Show: Grudgeball Evolution — juego de dodgeball multijugador online. ¡Elige tu equipo, lanza la pelota y sube de rango!">
 <!-- Open Graph (Discord, WhatsApp, Telegram, Facebook) -->
 <meta property="og:type" content="website">
@@ -1058,6 +1060,12 @@ body.mode-pc #sModes > *{
       <div style="font-size:7px;color:#9944cc;margin-bottom:10px;letter-spacing:1px;">👤 CUENTA</div>
       <div id="settingsAccountStatus" style="font-size:6px;color:#778;margin-bottom:10px;line-height:1.7;"></div>
       <button id="settingsAccountBtn" style="font-family:'Press Start 2P',monospace;font-size:7px;padding:9px 14px;cursor:pointer;border:2px solid #aa44dd;border-radius:6px;background:rgba(90,20,140,.5);color:#dd99ff;width:100%;">🔗 INICIAR SESIÓN / CREAR CUENTA</button>
+    </div>
+    <!-- Instalar como app (PWA) — oculto hasta que el navegador confirme que se puede instalar -->
+    <div id="pwaInstallSection" style="display:none;margin-bottom:16px;border:1px solid #2a1a4a;border-radius:8px;padding:12px;">
+      <div style="font-size:7px;color:#9944cc;margin-bottom:10px;letter-spacing:1px;">📲 INSTALAR APP</div>
+      <div style="font-size:6px;color:#778;margin-bottom:10px;line-height:1.7;">Instala Grudgeball como app para abrirlo más rápido, sin la barra del navegador.</div>
+      <button id="pwaInstallBtn" onclick="installPwa()" style="font-family:'Press Start 2P',monospace;font-size:7px;padding:9px 14px;cursor:pointer;border:2px solid #00ff88;border-radius:6px;background:rgba(0,90,50,.4);color:#00ff88;width:100%;">📲 INSTALAR APP</button>
     </div>
     <!-- Language selector -->
     <div style="margin-bottom:16px;border:1px solid #2a1a4a;border-radius:8px;padding:12px;">
@@ -2521,7 +2529,7 @@ function showWithLoad(id,ms,onReady){
     _loadTransitioning=false;
   },ms);
 }
-function showSettings(){$$('settingsModal').style.display='flex';updateModeButtons();_refreshMusicToggles();_refreshSettingsAccount();}
+function showSettings(){$$('settingsModal').style.display='flex';updateModeButtons();_refreshMusicToggles();_refreshSettingsAccount();_refreshPwaInstallSection();}
 function _refreshSettingsAccount(){
   const statusEl=$$('settingsAccountStatus'),btnEl=$$('settingsAccountBtn');
   if(!statusEl||!btnEl)return;
@@ -2536,6 +2544,58 @@ function _refreshSettingsAccount(){
     btnEl.onclick=function(){closeSettings();if(window._fbShowAuthGate)window._fbShowAuthGate();};
   }
 }
+
+// ══════════════════════════════════════════════════════════
+//  INSTALAR COMO APP (PWA) — vive solo dentro de Settings,
+//  no aparece como banner/botón en la pantalla principal.
+// ══════════════════════════════════════════════════════════
+let _deferredPwaPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  _deferredPwaPrompt = e;
+  _refreshPwaInstallSection();
+});
+window.addEventListener('appinstalled', () => {
+  _deferredPwaPrompt = null;
+  _refreshPwaInstallSection();
+  toast('¡Grudgeball instalado!', '#00ff88');
+});
+function _isPwaStandalone(){
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+function _isIOSDevice(){
+  return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+}
+function _refreshPwaInstallSection(){
+  const sec=$$('pwaInstallSection'); if(!sec) return;
+  if(_isPwaStandalone()){ sec.style.display='none'; return; } // ya instalado
+  // Chrome/Edge/Android: solo se muestra cuando el navegador confirma que es instalable
+  // iOS Safari: no existe beforeinstallprompt, mostramos instrucciones manuales
+  sec.style.display=(_deferredPwaPrompt||_isIOSDevice())?'block':'none';
+}
+async function installPwa(){
+  const btn=$$('pwaInstallBtn');
+  if(!_deferredPwaPrompt){
+    if(_isIOSDevice()){
+      toast('En Safari: toca Compartir 📤 → "Añadir a pantalla de inicio"', '#00ff88');
+    }else{
+      toast('Ya está instalada o tu navegador no lo permite ahora.', '#ffaa00');
+    }
+    return;
+  }
+  if(btn) btn.disabled=true;
+  _deferredPwaPrompt.prompt();
+  try{
+    const {outcome}=await _deferredPwaPrompt.userChoice;
+    if(outcome==='accepted') toast('¡Instalando Grudgeball!', '#00ff88');
+  }catch(e){}
+  _deferredPwaPrompt=null;
+  if(btn) btn.disabled=false;
+  _refreshPwaInstallSection();
+}
+// Comprobación inicial (por si ya cargó instalada o es iOS) sin esperar a abrir Settings
+document.addEventListener('DOMContentLoaded', _refreshPwaInstallSection);
+
 function closeProfile(){$$('profileModal').style.display='none';}
 function showProfile(){
   const body=$$('profileBody');if(!body)return;
