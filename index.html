@@ -4077,7 +4077,12 @@ class Fighter{
       c.lineTo(sprX+r,sprY+sprH);c.arcTo(sprX,sprY+sprH,sprX,sprY+sprH-r,r);
       c.lineTo(sprX,sprY+r);c.arcTo(sprX,sprY,sprX+r,sprY,r);c.closePath();
       c.clip();
-      if(this.side==='r'){c.translate(sprX+sprW,sprY);c.scale(-1,1);c.drawImage(activeSpr,0,0,sprW,sprH);}
+      // El sprite mira hacia el centro del campo según su lado. Cuando la cámara
+      // está espejada (guest), el flip horizontal debe invertirse también, o de lo
+      // contrario ambos lados terminan mirando hacia el lado equivocado.
+      const _camMirrored=(typeof myNetRole==='function'&&myNetRole()==='guest');
+      const _shouldFlip=_camMirrored?(this.side==='l'):(this.side==='r');
+      if(_shouldFlip){c.translate(sprX+sprW,sprY);c.scale(-1,1);c.drawImage(activeSpr,0,0,sprW,sprH);}
       else{c.drawImage(activeSpr,sprX,sprY,sprW,sprH);}
       c.restore();
     }
@@ -4352,8 +4357,11 @@ function onPointerDown(e){
     if(counterWin){_guestSendInput('counter',{});return;}
     // Super
     if(rageE>=100){_guestSendInput('super',{});return;}
-    // Drag de ficha propia (teamE)
-    const hitF=hitFighter(teamE,gx,gy,44);
+    // Drag de ficha propia — SIEMPRE mi equipo real (myAllowedTeam), no teamE fijo:
+    // startBattle() siempre construye MI equipo en teamJ (sea host o guest), así que
+    // asumir teamE aquí causaba que el guest arrastrara/lanzara con las fichas del host.
+    const myTeamGuest=myAllowedTeam();
+    const hitF=hitFighter(myTeamGuest,gx,gy,44);
     if(hitF&&hitF.alive){
       // Guardar para el move/up
       window._guestDragFighter=hitF;
@@ -4434,9 +4442,9 @@ function onPointerMove(e){
     const gxScreen=Math.max(0,Math.min(r2.width,t2.clientX-r2.left))*(W/r2.width);
     const gx=W-gxScreen;
     const gy=Math.max(0,Math.min(r2.height,t2.clientY-r2.top))*(H/r2.height);
-    // Clampar al lado del guest (derecho)
+    // Clampar al lado lógico real de mi ficha (izquierdo, ya que mi equipo vive en teamJ)
     const f=window._guestDragFighter;
-    const nx=Math.max(W/2+10,Math.min(W-f.w-20,gx-f.w/2));
+    const nx=Math.max(20,Math.min(W/2-f.w-10,gx-f.w/2));
     const ny=Math.max(20,Math.min(H-f.h-20,gy-f.h/2));
     // Mover localmente para feedback visual inmediato
     f.x=nx;f.y=ny;f.targetX=nx;f.targetY=ny;
@@ -4502,11 +4510,12 @@ function onPointerUp(e){
       window._guestAimStart=null;
       // Si no hubo arrastre significativo, ignorar (fue un simple tap)
       if(dist<14)return;
-      // Buscar mi ficha portadora (teamE) para lanzar
-      const carrier=teamE.find(f=>f.alive&&ball.owner===f);
+      // Buscar mi ficha portadora — SIEMPRE mi equipo real, no teamE fijo
+      const myTeamGuest2=myAllowedTeam();const oppTeamGuest2=myTeamGuest2===teamJ?teamE:teamJ;
+      const carrier=myTeamGuest2.find(f=>f.alive&&ball.owner===f);
       if(carrier){
-        // Intentar lanzamiento dirigido (a un rival) si el swipe termina cerca de uno
-        const tgt=hitFighter(teamJ,gx,gy,50);
+        // Intentar lanzamiento dirigido (a un rival real) si el swipe termina cerca de uno
+        const tgt=hitFighter(oppTeamGuest2,gx,gy,50);
         if(tgt&&tgt.alive){
           _guestSendInput('throw',{srcKey:carrier.key,dstKey:tgt.key,charge:ball.charge||0,ballType:ball.type||'normal',spd:14});
         }else{
