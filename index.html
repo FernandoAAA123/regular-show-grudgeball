@@ -5533,11 +5533,10 @@ function myNetRole(){
   return null;
 }
 function myAllowedTeam(){
-  const r=myNetRole();
-  if(r==='host') return teamJ;
-  if(r==='guest') return teamE;
-  // Modo de un jugador (sin red): el humano SIEMPRE controla teamJ,
-  // sin importar quién tiene la pelota — los turnos ya no restringen esto.
+  // startGame() siempre construye MI equipo real (host o guest) en teamJ local —
+  // teamE local siempre es el rival. Por eso myAllowedTeam() es SIEMPRE teamJ,
+  // sin importar el rol de red. (Antes devolvía teamE para el guest, que ya no
+  // corresponde a la arquitectura actual donde teamJ=mi equipo en ambos roles.)
   return teamJ;
 }
 function isMyThrowTurn(){
