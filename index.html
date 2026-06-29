@@ -4246,7 +4246,7 @@ function _applyArenaBg(idx){
 }
 function _resetArenaBg(){const el=$$('sGame');if(el)el.style.background='var(--BG)';}
 function applyLeaderBuff(){if(!leaderKey||!CHARS[leaderKey])return;leaderBuffActive.key=leaderKey;leaderBuffActive.desc=CHARS[leaderKey].leaderBuff;spawnFloat('BUFF: '+CHARS[leaderKey].name,W/2,H/2-60,'#ffe600');}
-function spawnFloorPowerup(){if(!active)return;const def=POWERUPS[Math.floor(Math.random()*POWERUPS.length)];floorPowerups.push({x:W/4+Math.random()*(W/2),y:60+Math.random()*(H-120),def,pulse:0});if(active)setTimeout(spawnFloorPowerup,8000+Math.random()*6000);}
+function spawnFloorPowerup(){if(!active)return;if(myNetRole()==='guest')return;const def=POWERUPS[Math.floor(Math.random()*POWERUPS.length)];floorPowerups.push({x:W/4+Math.random()*(W/2),y:60+Math.random()*(H-120),def,pulse:0});if(active)setTimeout(spawnFloorPowerup,8000+Math.random()*6000);}
 function checkBallPickupPowerup(){if(!floorPowerups.length)return;for(let i=floorPowerups.length-1;i>=0;i--){const p=floorPowerups[i];const dx=ball.x-p.x,dy=ball.y-p.y;if(Math.sqrt(dx*dx+dy*dy)<22){applyPowerup(p.def);floorPowerups.splice(i,1);}}}
 function applyPowerup(def){sfxPwup();bStats.pwup++;showPowerup(def.name+' — '+def.desc,def.col);if(def.id==='fireball'){ball.type='fireball';activePowerup=def;}else if(def.id==='blastball'){ball.type='blastball';activePowerup=def;}else if(def.id==='poisonball'){ball.type='poisonball';activePowerup=def;}else if(def.id==='speedball'){ball.type='speedball';activePowerup=def;}else if(def.id==='armor'){armorShield=def.duration;teamJ.filter(j=>j.alive).forEach(j=>j.armor=def.duration);spawnFloat('ARMADURA!',W/4,H/2,'#aaaaaa');}else if(def.id==='heal'){const target=ball.owner||teamJ.find(j=>j.alive);if(target)target.heal(1);}else if(def.id==='rageboost'){addRage('j',40);spawnFloat('+RABIA!',W/4,H/2,'#cc44ff');}$$('pwupDisplay').textContent=activePowerup?activePowerup.name+' ACTIVO':'';}
 function updHUD(){
@@ -5632,6 +5632,7 @@ async function _rtcCreatePeer(role, roomId, onMsg, onDisconnect){
   // ICE candidates → subir a Firebase
   pc.onicecandidate=(e)=>{
     if(!e.candidate)return;
+    console.log('[RTC] ICE candidate generado ('+role+')');
     const candRef=window._fbRtdbRef('rooms/'+roomId+'/'+(role==='host'?'hostCandidates':'guestCandidates'));
     window._fbRtdbPush(candRef, e.candidate.toJSON());
   };
@@ -5641,13 +5642,15 @@ async function _rtcCreatePeer(role, roomId, onMsg, onDisconnect){
     const offer=await pc.createOffer();
     await pc.setLocalDescription(offer);
     await window._fbRtdbSet(window._fbRtdbRef('rooms/'+roomId+'/offer'), {type:offer.type,sdp:offer.sdp});
+    console.log('[RTC] Offer publicada (host), roomId='+roomId);
 
     // 2. Escuchar answer del guest
     const unsubAnswer=window._fbRtdbOn(window._fbRtdbRef('rooms/'+roomId+'/answer'),(snap)=>{
       if(!snap||!snap.exists||!snap.exists())return;
       const ans=snap.val();
+      console.log('[RTC] Answer recibida (host)');
       if(pc.signalingState==='have-local-offer')
-        pc.setRemoteDescription(new RTCSessionDescription(ans)).catch(()=>{});
+        pc.setRemoteDescription(new RTCSessionDescription(ans)).catch((e)=>console.warn('[RTC] Error setRemoteDescription (host):',e.message));
     });
     _rtcCleanupFns.push(unsubAnswer);
 
@@ -5673,12 +5676,14 @@ async function _rtcCreatePeer(role, roomId, onMsg, onDisconnect){
     });
 
     const offerData=await waitOffer();
-    if(!offerData){return false;}
+    if(!offerData){console.warn('[RTC] Timeout esperando offer (guest), roomId='+roomId);return false;}
+    console.log('[RTC] Offer recibida (guest)');
 
     await pc.setRemoteDescription(new RTCSessionDescription(offerData));
     const answer=await pc.createAnswer();
     await pc.setLocalDescription(answer);
     await window._fbRtdbSet(window._fbRtdbRef('rooms/'+roomId+'/answer'),{type:answer.type,sdp:answer.sdp});
+    console.log('[RTC] Answer publicada (guest)');
 
     // Escuchar ICE candidates del host
     const unsubHostCand=window._fbRtdbOn(window._fbRtdbRef('rooms/'+roomId+'/hostCandidates'),(snap)=>{
@@ -5692,6 +5697,7 @@ async function _rtcCreatePeer(role, roomId, onMsg, onDisconnect){
 
   // Limpiar sala de Firebase cuando la conexión esté establecida
   pc.onconnectionstatechange=()=>{
+    console.log('[RTC] connectionState ('+role+'):',pc.connectionState);
     if(pc.connectionState==='connected'){
       // Borrar señales de Firebase (ya no se necesitan)
       setTimeout(()=>{
@@ -6011,6 +6017,7 @@ function _serializeGameState(){
     comboCount, comboMax,
     shakeF, shakeA,
     active,
+    floorPowerups: floorPowerups.map(p=>({x:p.x,y:p.y,id:p.def.id,pulse:p.pulse})),
   };
 }
 
@@ -6052,6 +6059,7 @@ function _applyGameState(s){
   blockWin=s.blockWin;counterWin=s.counterWin;
   comboCount=s.comboCount;comboMax=s.comboMax;
   shakeF=s.shakeF;shakeA=s.shakeA;
+  if(s.floorPowerups)floorPowerups=s.floorPowerups.map(p=>({x:p.x,y:p.y,pulse:p.pulse,def:POWERUPS.find(d=>d.id===p.id)})).filter(p=>p.def);
   // UI
   updHUD();
   if(blockWin){$$('blockBig').style.display='block';}
