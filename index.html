@@ -4156,7 +4156,7 @@ function startBattle(){
   $$('blockBig').style.display='none';$$('counterBig').style.display='none';$$('comboDisplay').textContent='';
   if($$('rageBig'))$$('rageBig').style.display='none';clearTimeout(blockTimer);clearTimeout(counterTimer);
   armorShield=0;poisonTarget=null;activePowerup=null;floorPowerups=[];parts=[];floats=[];shakeF=0;
-  window._mirrorLogged=false;
+  window._mirrorLogged=false;window._stateBroadcastLogged=0;window._stateApplyLogged=0;
   // ── Limpiar estado de red si no es una partida de sala/online ──
   const isNetMode=(sv.gameMode==='online')||(sv.gameMode==='versus'&&sv._netVersus);
   if(!isNetMode){
@@ -6089,11 +6089,15 @@ function _applyGameState(s){
 // ── Iniciar broadcast del host ────────────────────────────
 function _startHostBroadcast(){
   if(_hostBroadcastTimer)clearInterval(_hostBroadcastTimer);
+  if(!window._stateBroadcastLogged){window._stateBroadcastLogged=0;}
   _hostBroadcastTimer=setInterval(()=>{
     const ch=_netChannel||_onlineChannel;
     if(!ch||!ch.open){return;}
     if(!active)return;
-    try{ch.send({type:'state',data:_serializeGameState()});}catch(e){}
+    try{
+      ch.send({type:'state',data:_serializeGameState()});
+      if(window._stateBroadcastLogged<3){window._stateBroadcastLogged++;console.log('[SYNC] Host envió state #'+window._stateBroadcastLogged,'canal=',ch===_netChannel?'_netChannel':'_onlineChannel');}
+    }catch(e){console.warn('[SYNC] Error enviando state:',e.message);}
   }, 50); // 20fps
 }
 
@@ -6519,6 +6523,8 @@ function _handleNetVsMsg(data){
 
   // ── GUEST recibe estado del host ───────────────────────
   if(data.type==='state'&&myNetRole()==='guest'){
+    if(!window._stateApplyLogged){window._stateApplyLogged=0;}
+    if(window._stateApplyLogged<3){window._stateApplyLogged++;console.log('[SYNC] Guest recibió y aplicó state #'+window._stateApplyLogged,'arenaType=',data.data.arenaType);}
     _applyGameState(data.data);
     return;
   }
