@@ -4185,9 +4185,17 @@ function startBattle(){
     teamE=_infBuildEnemies(infFloor,infEpos);
     // bg already set by _infStartFloor
   }else if(isVersus()&&sv._versusJ2Chars&&sv._versusJ2Chars.length){
-    // Versus: use J2's chosen characters from CHARS (same pool as J1)
-    const j2arr=sv._versusJ2Chars.slice(0,3);
+    // Versus local (mismo dispositivo): el otro jugador (J2) siempre es el rival, sin roles.
+    // Versus P2P por red (_netVersus): el rival real depende de mi rol (_netRole).
+    const j2arr=(sv._netVersus&&sv._versusJ1Chars
+      ?(_netRole==='host'?sv._versusJ2Chars:sv._versusJ1Chars)
+      :sv._versusJ2Chars).slice(0,3);
     teamE=_spawnTeamFighters(j2arr,'r');
+    currentBgIndex=ARENA_BACKGROUNDS.findIndex(b=>b.id===(ARENA_BG_MAP[arenaType]||'park'));if(currentBgIndex<0)currentBgIndex=0;currentBgImg=null;currentFloorImg=null;
+  }else if(isOnlineReal()&&sv._versusJ1Chars&&sv._versusJ2Chars){
+    // Online real: el rival es "el otro rol" — si yo soy host, mi rival es el guest (J2) y viceversa.
+    const rivalArr=(sv._onlineVersusRole==='host'?sv._versusJ2Chars:sv._versusJ1Chars).slice(0,3);
+    teamE=_spawnTeamFighters(rivalArr,'r');
     currentBgIndex=ARENA_BACKGROUNDS.findIndex(b=>b.id===(ARENA_BG_MAP[arenaType]||'park'));if(currentBgIndex<0)currentBgIndex=0;currentBgImg=null;currentFloorImg=null;
   }else{
     const shuffled=[...ENEMY_DEFS].sort(()=>Math.random()-.5).slice(0,3);
@@ -5940,7 +5948,9 @@ function _onlineCharReady(){
       clearInterval(waitId);
       const hostSel=_onlineRole==='host'?mySel:_onlineRivalSelection;
       const guestSel=_onlineRole==='host'?_onlineRivalSelection:mySel;
-      selectedChars=new Set(hostSel.chars);leaderKey=hostSel.leader||hostSel.chars[0];
+      // selectedChars debe ser SIEMPRE el equipo propio de este jugador (no el del host),
+      // así teamJ (lado jugable) muestra los personajes que YO elegí, sea host o guest.
+      selectedChars=new Set(mySel.chars);leaderKey=mySel.leader||mySel.chars[0];
       sv._versusJ1Chars=hostSel.chars;sv._versusJ1Leader=hostSel.leader;
       sv._versusJ2Chars=guestSel.chars;sv._versusJ2Leader=guestSel.leader;
       versusPhase=0;sv._onlineVersusRole=_onlineRole;
@@ -6537,7 +6547,10 @@ function _netCharReady(){
 }
 
 function _netLaunchGame(hostSel,guestSel){
-  selectedChars=new Set(hostSel.chars);leaderKey=hostSel.leader||hostSel.chars[0];
+  // selectedChars = SIEMPRE mi propio equipo (según mi rol real), no el del host fijo —
+  // así teamJ (lado jugable) muestra los personajes que YO elegí, sea host o guest.
+  const mySel=_netRole==='host'?hostSel:guestSel;
+  selectedChars=new Set(mySel.chars);leaderKey=mySel.leader||mySel.chars[0];
   sv._versusJ1Chars=hostSel.chars;sv._versusJ1Leader=hostSel.leader;
   sv._versusJ2Chars=guestSel.chars;sv._versusJ2Leader=guestSel.leader;
   versusPhase=3;
