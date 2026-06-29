@@ -4442,9 +4442,18 @@ function onPointerMove(e){
     const gxScreen=Math.max(0,Math.min(r2.width,t2.clientX-r2.left))*(W/r2.width);
     const gx=W-gxScreen;
     const gy=Math.max(0,Math.min(r2.height,t2.clientY-r2.top))*(H/r2.height);
-    // Clampar al lado lógico real de mi ficha (izquierdo, ya que mi equipo vive en teamJ)
+    // Clampar al lado lógico REAL de mi ficha. OJO: aunque mi equipo vive
+    // localmente en el array "teamJ", _applyGameState() (línea ~6048-6066)
+    // sincroniza mi teamJ local con los valores que el HOST guarda en SU
+    // teamE (su "rival"=yo) — y teamE en el host vive en el lado DERECHO
+    // del campo (ver _spawnTeamFighters: side 'r' → x=708). Por eso, en el
+    // espacio canónico compartido por la red, mi propia ficha debe quedar
+    // confinada al lado DERECHO (igual que el clamp de J2 en versus local,
+    // líneas ~4471/4481: minX=W/2+10, maxX=W-f.w-20), NO al izquierdo.
+    // El clamp anterior (lado izquierdo) era lo que causaba que mi ficha
+    // se enviara al host con una x ya cruzada hacia el lado de J1.
     const f=window._guestDragFighter;
-    const nx=Math.max(20,Math.min(W/2-f.w-10,gx-f.w/2));
+    const nx=Math.max(W/2+10,Math.min(W-f.w-20,gx-f.w/2));
     const ny=Math.max(20,Math.min(H-f.h-20,gy-f.h/2));
     // Mover localmente para feedback visual inmediato
     f.x=nx;f.y=ny;f.targetX=nx;f.targetY=ny;
@@ -5537,6 +5546,16 @@ function myAllowedTeam(){
   // teamE local siempre es el rival. Por eso myAllowedTeam() es SIEMPRE teamJ,
   // sin importar el rol de red. (Antes devolvía teamE para el guest, que ya no
   // corresponde a la arquitectura actual donde teamJ=mi equipo en ambos roles.)
+  //
+  // ⚠️ OJO al usar esto para clamps de posición X: aunque el ARRAY es siempre
+  // teamJ, las COORDENADAS X canónicas (las que viajan por la red) NO siempre
+  // están en el lado izquierdo. Para el guest, _applyGameState() sincroniza su
+  // teamJ local con los valores que el host guarda en SU teamE (su rival=yo),
+  // que vive en el lado DERECHO (x≈708, ver _spawnTeamFighters). Así que, para
+  // el guest, mi propio equipo está en el lado IZQUIERDO en pantalla (por el
+  // espejo de drawScene) pero en el lado DERECHO en coordenadas canónicas/red.
+  // No asumas "teamJ=izquierda" sin verificar en qué espacio de coordenadas
+  // estás parado (pantalla local vs canónico/red) — confirmado bug real por esto.
   return teamJ;
 }
 function isMyThrowTurn(){
