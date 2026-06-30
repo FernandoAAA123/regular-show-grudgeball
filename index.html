@@ -4407,7 +4407,17 @@ function onPointerDown(e){
     // asumir teamE aquí causaba que el guest arrastrara/lanzara con las fichas del host.
     const myTeamGuest=myAllowedTeam();
     const hitF=hitFighter(myTeamGuest,gx,gy,44);
-    if(hitF&&hitF.alive){
+    // ── FIX BUG REAL CONFIRMADO: excluir al PORTADOR del balón de la detección
+    // de "drag" mientras lo tiene en mano (ball.onGround===false). Sin esto,
+    // CUALQUIER toque sobre mi propio portador (incluido el gesto de tocar y
+    // arrastrar para APUNTAR/LANZAR) se interceptaba como un simple arrastre
+    // de ficha, dejando window._guestAimStart sin asignar — por eso J2 jamás
+    // lograba armar el swipe de lanzamiento y "no podía tirar el balón".
+    // El handler genérico del host/local YA tiene esta misma exclusión
+    // (ver más abajo: "hitAllyGround&&(ball.onGround||ball.owner!==hitAllyGround)"),
+    // pero faltaba aquí en la rama dedicada del guest.
+    const hitFisCarrierHolding=hitF&&ball.owner===hitF&&!ball.onGround;
+    if(hitF&&hitF.alive&&!hitFisCarrierHolding){
       // Guardar para el move/up
       window._guestDragFighter=hitF;
       window._guestDragStart={x:gx,y:gy};
@@ -6205,32 +6215,38 @@ function _guestGameLoop(){
 // ── El guest envía sus inputs al host ─────────────────────
 function _guestSendInput(action,data){
   const ch=_netChannel||_onlineChannel;
-  if(ch&&ch.open){try{ch.send({type:'input',action,data});}catch(e){}}
+  console.log('[NET][GUEST→HOST] enviar',action,data,'canal:',ch?(ch.open?'abierto':'CERRADO'):'INEXISTENTE');
+  if(ch&&ch.open){try{ch.send({type:'input',action,data});}catch(e){console.log('[NET][GUEST→HOST] ERROR al enviar:',e.message);}}
 }
 
 // ── El host aplica inputs del guest ───────────────────────
 function _hostApplyInput(action,d){
+  console.log('[NET][HOST] _hostApplyInput recibido:',action,d);
   if(action==='drag'){
     // Guest mueve una ficha de teamE
     const f=teamE.find(f=>f.key===d.key);
     if(f&&f.alive){f.x=d.x;f.y=d.y;f.targetX=d.x;f.targetY=d.y;f.manualMove=false;}
+    else console.log('[NET][HOST] drag: NO encontrado en teamE. key buscada=',d.key,'keys disponibles en teamE=',teamE.map(t=>t.key),'alive?',f&&f.alive);
   }
   if(action==='throw'){
     // Guest lanza: src de teamE, dest de teamJ
     const src=teamE.find(f=>f.key===d.srcKey);
     const dst=teamJ.find(f=>f.key===d.dstKey);
     if(src&&dst&&!ball.inFlight){ball.charge=d.charge||0;ball.type=d.ballType||'normal';throwBall(src,dst,d.isPase||false,false,d.spd||14);}
+    else console.log('[NET][HOST] throw FALLÓ. src=',!!src,'dst=',!!dst,'ball.inFlight=',ball.inFlight,'srcKey=',d.srcKey,'dstKey=',d.dstKey,'teamE keys=',teamE.map(t=>t.key),'teamJ keys=',teamJ.map(t=>t.key));
   }
   if(action==='throwFree'){
     const src=teamE.find(f=>f.key===d.srcKey);
     if(src&&!ball.inFlight){ball.charge=d.charge||0;ball.type=d.ballType||'normal';throwBallFree(src,d.dx,d.dy,d.charge);}
+    else console.log('[NET][HOST] throwFree FALLÓ. src=',!!src,'ball.inFlight=',ball.inFlight,'srcKey=',d.srcKey,'teamE keys=',teamE.map(t=>t.key));
   }
-  if(action==='block'){if(blockWin)doBlock();}
-  if(action==='counter'){if(counterWin)doCounter();}
-  if(action==='super'){if(rageE>=100)doSuperJ2();}
+  if(action==='block'){if(blockWin)doBlock();else console.log('[NET][HOST] block ignorado: blockWin=false');}
+  if(action==='counter'){if(counterWin)doCounter();else console.log('[NET][HOST] counter ignorado: counterWin=false');}
+  if(action==='super'){if(rageE>=100)doSuperJ2();else console.log('[NET][HOST] super ignorado: rageE=',rageE);}
   if(action==='pickup'){
     const f=teamE.find(f=>f.key===d.key);
     if(f&&!ball.inFlight&&ball.onGround){ball.owner=f;ball.onGround=false;}
+    else console.log('[NET][HOST] pickup FALLÓ. f=',!!f,'ball.inFlight=',ball.inFlight,'ball.onGround=',ball.onGround,'key=',d.key,'teamE keys=',teamE.map(t=>t.key));
   }
 }
 
