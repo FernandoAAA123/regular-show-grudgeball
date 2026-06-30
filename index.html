@@ -4292,6 +4292,32 @@ function setTurn(j){
     else{tb.textContent=t('rivalTurn');tb.style.cssText='font-size:9px;padding:3px 10px;border:2px solid #ff2277;color:#ff2277;text-shadow:0 0 8px #ff2277;animation:tbP 1.2s ease-in-out infinite;border-radius:4px;';cv.style.cursor='default';}
   }
 }
+// ── Badge de 3 estados para VERSUS POR SALA (no-simultáneo): Neutral / J1 / J2 ──
+// PASO 2 ya quitó el bloqueo real por turno en versus (acciones dependen de
+// cooldown propio, no de turnJ); turnJ/setTurn() ahí es solo cosmético. Pero
+// setTurn() solo se llama en eventos puntuales (rebote/expira/muere objetivo),
+// nunca cuando alguien simplemente RECOGE la pelota tras un fallo — por eso el
+// badge se quedaba pegado en "J1 ATACA" aunque el balón ya estuviera libre en
+// el suelo o ya lo hubiera agarrado J2. Esta función corre cada frame y refleja
+// la posesión REAL: sin dueño = Neutral, dueño en mi equipo local (side 'l')
+// o en el rival (side 'r') se traduce a J1/J2 según el rol de red.
+function updNonSimVersusBadge(){
+  if(!(isVersus()&&!versusSimultaneous))return;
+  const tb=$$('turnBadge');if(!tb)return;
+  if(!ball.owner||!ball.owner.alive){
+    tb.textContent='BALÓN LIBRE';
+    tb.style.cssText='font-size:7px;padding:3px 8px;border:2px solid #ffe600;color:#ffe600;text-shadow:0 0 8px #ffe600;animation:tbP 1.2s ease-in-out infinite;border-radius:4px;';
+    return;
+  }
+  // side 'l' siempre es MI equipo local (teamJ), tanto en host como en guest
+  // (ver myAllowedTeam/_applyGameState). Para traducir a J1/J2 global hay que
+  // considerar el rol de red: si soy guest, mi 'l' local es en realidad J2.
+  const amGuest=myNetRole()==='guest';
+  const ownerIsMyLocalTeam=ball.owner.side==='l';
+  const isJ1Turn=amGuest?!ownerIsMyLocalTeam:ownerIsMyLocalTeam;
+  if(isJ1Turn){tb.textContent='J1 ATACA';tb.style.cssText='font-size:8px;padding:3px 8px;border:2px solid #00d4ff;color:#00d4ff;text-shadow:0 0 8px #00d4ff;animation:tbP 1.2s ease-in-out infinite;border-radius:4px;';}
+  else{tb.textContent='J2 ATACA';tb.style.cssText='font-size:8px;padding:3px 8px;border:2px solid #ff2277;color:#ff2277;text-shadow:0 0 8px #ff2277;animation:tbP 1.2s ease-in-out infinite;border-radius:4px;';}
+}
 // Show pass-device overlay between turns in versus mode
 function versusPassTurn(toJ,callback){
   // En Versus por Sala y Online cada jugador tiene su PROPIO dispositivo:
@@ -4357,6 +4383,25 @@ function onPointerDown(e){
     if(counterWin){_guestSendInput('counter',{});return;}
     // Super
     if(rageE>=100){_guestSendInput('super',{});return;}
+    // ── FIX BUG REAL: pelota en el suelo sin dueño → si toco cerca, la recojo.
+    // Esto NUNCA se enviaba desde el guest (solo el host detectaba esto en su
+    // propio onPointerDown para SU equipo). _hostApplyInput('pickup',...) ya
+    // sabía procesar esta acción, pero nada la disparaba del lado del guest —
+    // por eso J2 jamás podía levantar la pelota caída en su propio lado.
+    // ball.x/ball.y ya están en el mismo espacio canónico que gx/gy (ambos
+    // sincronizados/convertidos arriba), así que la distancia se compara directo.
+    if(ball.onGround&&!ball.inFlight&&!ball.owner){
+      const bdx=gx-ball.x,bdy=gy-ball.y;
+      if(Math.sqrt(bdx*bdx+bdy*bdy)<36){
+        const myTeamPick=myAllowedTeam().filter(j=>j.alive);
+        if(myTeamPick.length){
+          const nearest=myTeamPick.reduce((a,b)=>
+            Math.hypot(a.x+a.w/2-ball.x,a.y+a.h/2-ball.y)<Math.hypot(b.x+b.w/2-ball.x,b.y+b.h/2-ball.y)?a:b);
+          _guestSendInput('pickup',{key:nearest.key});
+        }
+        return;
+      }
+    }
     // Drag de ficha propia — SIEMPRE mi equipo real (myAllowedTeam), no teamE fijo:
     // startBattle() siempre construye MI equipo en teamJ (sea host o guest), así que
     // asumir teamE aquí causaba que el guest arrastrara/lanzara con las fichas del host.
@@ -6152,6 +6197,7 @@ function _guestGameLoop(){
   floats=floats.filter(f=>f.life>0);
   floats.forEach(f=>{f.y+=f.vy;f.life--;});
   if(shakeF>0)shakeF--;
+  updNonSimVersusBadge();
   drawScene();
   animId=requestAnimationFrame(_guestGameLoop);
 }
@@ -7024,6 +7070,7 @@ function gameLoop(){
   // Solo actúa si teamE NO está controlado por un humano (sala/online/simultáneo).
   const _teamEisHumanLoop=(isVersus()&&versusSimultaneous)||(isVersus()&&sv._netVersus)||isOnlineReal();
   if(!_teamEisHumanLoop)aiTurn();
+  updNonSimVersusBadge();
   if(comboTimer>0){comboTimer--;if(comboTimer<=0)resetCombo();}
   if(meteorShower.active){meteorShower.timer--;if(meteorShower.timer<=0){meteorShower.timer=180+Math.random()*120;
     const all=[...teamJ,...teamE].filter(j=>j.alive);if(all.length){const tgt=all[Math.floor(Math.random()*all.length)];showEventFlash('☄️ LLUVIA DE METEOROS','#ff6600');
