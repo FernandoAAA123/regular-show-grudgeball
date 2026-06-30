@@ -4390,17 +4390,26 @@ function onPointerDown(e){
     // por eso J2 jamás podía levantar la pelota caída en su propio lado.
     // ball.x/ball.y ya están en el mismo espacio canónico que gx/gy (ambos
     // sincronizados/convertidos arriba), así que la distancia se compara directo.
+    // Radio ampliado a 60 (antes 36, muy chico para un dedo en pantalla táctil).
     if(ball.onGround&&!ball.inFlight&&!ball.owner){
       const bdx=gx-ball.x,bdy=gy-ball.y;
-      if(Math.sqrt(bdx*bdx+bdy*bdy)<36){
+      const pickDist=Math.sqrt(bdx*bdx+bdy*bdy);
+      console.log('[NET][GUEST] intento de pickup: gx=',gx.toFixed(1),'gy=',gy.toFixed(1),'ball.x=',ball.x.toFixed(1),'ball.y=',ball.y.toFixed(1),'distancia=',pickDist.toFixed(1));
+      if(pickDist<60){
         const myTeamPick=myAllowedTeam().filter(j=>j.alive);
         if(myTeamPick.length){
           const nearest=myTeamPick.reduce((a,b)=>
             Math.hypot(a.x+a.w/2-ball.x,a.y+a.h/2-ball.y)<Math.hypot(b.x+b.w/2-ball.x,b.y+b.h/2-ball.y)?a:b);
+          console.log('[NET][GUEST] pickup ENVIADO con key=',nearest.key);
           _guestSendInput('pickup',{key:nearest.key});
         }
         return;
       }
+    } else if(!ball.inFlight){
+      // Log de contexto: si el jugador está intentando tocar la pelota pero
+      // alguna de estas condiciones es falsa, esto explica por qué no entra
+      // al bloque de pickup (ej. ball.owner sigue seteado por desincronía).
+      console.log('[NET][GUEST] tap detectado pero NO es pickup. ball.onGround=',ball.onGround,'ball.inFlight=',ball.inFlight,'ball.owner=',ball.owner?ball.owner.key+'/side='+ball.owner.side:null);
     }
     // Drag de ficha propia — SIEMPRE mi equipo real (myAllowedTeam), no teamE fijo:
     // startBattle() siempre construye MI equipo en teamJ (sea host o guest), así que
@@ -6128,7 +6137,31 @@ function _applyGameState(s){
   const amGuest=myNetRole()==='guest';
   const incomingForMyTeamJ=amGuest?s.teamE:s.teamJ;
   const incomingForMyTeamE=amGuest?s.teamJ:s.teamE;
-  const applyTo=(arr,team)=>arr.forEach(d=>{const f=team.find(f=>f.key===d.key);if(!f)return;
+  // ── FIX BUG REAL CONFIRMADO: mientras arrastro mi propia ficha, el host
+  // todavía no sabe su nueva posición (solo se la mando al SOLTAR, ver
+  // onPointerUp → _guestSendInput('drag',...)). El host sigue transmitiendo
+  // ~20 veces/seg la posición VIEJA de esa ficha mientras tanto, y sin esta
+  // exclusión, cada uno de esos mensajes pisaba la posición que acababa de
+  // mover mi propio dedo — el personaje "se regresaba a como estaba antes"
+  // constantemente durante el arrastre. Se excluye por key, no por
+  // identidad de objeto, porque cada _applyGameState busca el Fighter de
+  // nuevo vía .find() (la identidad del objeto sí se mantiene estable en
+  // realidad, pero comparar por key es más explícito y a prueba de futuros
+  // cambios en cómo se referencia la ficha arrastrada).
+  const draggedKey=(myNetRole()==='guest'&&window._guestDragFighter)?window._guestDragFighter.key:null;
+  const applyTo=(arr,team)=>arr.forEach(d=>{
+    const f=team.find(f=>f.key===d.key);if(!f)return;
+    if(d.key===draggedKey){
+      // Solo sincronizar lo que NO es posición (vida, animaciones, etc.)
+      // — x/y se quedan como los dejó mi propio dedo hasta que suelte.
+      f.hp=d.hp;f.alive=d.alive;
+      f.jumpH=d.jumpH;f.jumping=d.jumping;
+      f._throwTimer=d._throwTimer;f._shieldTimer=d._shieldTimer;
+      f._hurtTimer=d._hurtTimer;f._superTimer=d._superTimer;
+      f.hitFlash=d.hitFlash;f.frozen=d.frozen;f.poisoned=d.poisoned;
+      f.scaleX=d.scaleX;f.scaleY=d.scaleY;
+      return;
+    }
     f.x=d.x;f.y=d.y;f.hp=d.hp;f.alive=d.alive;
     f.jumpH=d.jumpH;f.jumping=d.jumping;
     f._throwTimer=d._throwTimer;f._shieldTimer=d._shieldTimer;
